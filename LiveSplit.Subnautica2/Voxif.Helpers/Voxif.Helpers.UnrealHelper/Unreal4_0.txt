@@ -1,0 +1,164 @@
+
+
+//Core/Public/UObject/NameTypes.h
+TStaticIndirectArrayThreadSafeRead<T>
+  void** Chunks
+  int NumElements
+  int NumChunks
+
+FNameEntry
+  int Index
+  FNameEntry* HashNext
+  char[] Name
+
+FName
+  int Index
+  int Number
+
+
+//Core/Public/Containers/Array.h
+TArray<T>
+  void* AllocatorInstance
+  int ArrayNum
+  int ArrayMax
+
+
+
+//CoreUObject/Public/UObject/UObjectArray.h
+FUObjectArray
+  int ObjFirstGCIndex
+  int ObjLastNonGCIndex
+  int OpenForDisregardForGC
+  TArray<UObjectBase*> ObjObjects
+  //...
+
+
+//CoreUObject/Public/UObject/UObjectBase.h
+UObjectBase
+  void* VTable
+  int ObjectFlags //EObjectFlags
+  int InternalIndex
+  UClass* Class
+  FName Name
+  UObject* Outer
+
+UObjectBaseUtility : UObjectBase
+
+//CoreUObject/Public/UObject/UObject.h
+//CoreUObject/Public/UObject/Object.h
+UObject : UObjectBaseUtility
+
+//CoreUObject/Public/UObject/Class.h
+UField : UObject
+  UField* Next
+
+UStruct : UField
+  UStruct* SuperStruct
+  UField* Children
+  int PropertiesSize
+  TArray<byte> Script
+  int MinAlignment
+  Property* PropertyLink
+  Property* RefLink
+  Property* DestructorLink
+  Property* PostConstructLink
+  TArray<UObject*> ScriptObjectReferences
+
+
+//All Properties are prefixed with 'U' up to 4.25 then with 'F'
+//Ignore prefix to avoid creating duplicates structs
+//CoreUObject/Public/UObject/UnrealType.h
+Property : UField
+  int ArrayDim
+  int ElementSize
+  ulong PropertyFlags //EPropertyFlags
+  ushort RepIndex
+  FName RepNotifyFunc
+  int Offset_Internal
+  Property* PropertyLinkNext
+  Property* NextRef
+  Property* DestructorLinkNext
+  Property* PostConstructLinkNext
+
+
+ObjectPropertyBase : Property
+  UClass* PropertyClass
+
+ObjectProperty : ObjectPropertyBase
+
+ClassProperty : ObjectProperty
+  UClass* MetaClass
+
+StructProperty : Property
+  UScriptStruct* Struct
+
+InterfaceProperty : Property
+  UClass* InterfaceClass
+
+
+NumericProperty : Property
+
+ByteProperty : NumericProperty
+  UEnum* Enum
+
+
+BoolProperty : Property
+  byte FieldSize
+  byte ByteOffset
+  byte ByteMask
+  byte FieldMask
+
+
+ArrayProperty : Property
+  Property* Inner
+
+SetProperty  : Property
+  Property* ElementProp
+
+MapProperty : Property
+  Property* KeyProp
+  Property* ValueProp
+
+
+//Introduced in 4.15 but stored here for simplicity
+//CoreUObject/Public/UObject/EnumProperty.h
+EnumProperty : Property
+  NumericProperty* UnderlyingProp
+  UEnum* Enum
+
+
+
+
+//UFunction : UStruct
+//4.0
+//  uint FunctionFlags
+//  ushort RepOffset
+//  byte NumParms
+//  ushort ParmsSize
+//  ushort ReturnValueOffset
+//  ushort RPCId
+//  ushort RPCResponseId
+//  Property* FirstPropertyToInit
+//
+//(4.8)
+//#if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
+//  UFunction* EventGraphFunction
+//  int EventGraphCallOffset
+//#endif
+//
+//  Native Func
+//4.17
+//  uint FunctionFlags //EFunctionFlags
+//  byte NumParms
+//  ushort ParmsSize
+//  ushort ReturnValueOffset
+//  ushort RPCId
+//  ushort RPCResponseId
+//  Property* FirstPropertyToInit
+//
+//#if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
+//  UFunction* EventGraphFunction
+//  int EventGraphCallOffset
+//#endif
+//
+//  FNativeFuncPtr Func

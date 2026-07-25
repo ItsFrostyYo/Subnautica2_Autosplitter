@@ -1,0 +1,146 @@
+Mono_v1
+
+MonoAssemblyName
+  char* name
+  char* culture
+  char* hash_value
+  byte* public_key
+  byte[17] public_key_token
+  uint hash_alg
+  uint hash_len
+  uint flags
+  ushort major
+  ushort minor
+  ushort build
+  ushort revision
+  ushort arch
+
+MonoImage
+  int ref_count
+  void* raw_data_handle
+  char* raw_data
+  uint raw_data_len
+  byte _bitfields1
+  byte _bitfields2
+  char* name
+  char* assembly_name
+  char* module_name
+  char* version
+  short md_version_major
+  short md_version_minor
+  char* guid
+  void* image_info
+  MonoMemPool* mempool
+  char* raw_metadata
+  MonoStreamHeader heap_strings
+  MonoStreamHeader heap_us
+  MonoStreamHeader heap_blob
+  MonoStreamHeader heap_guid
+  MonoStreamHeader heap_tables
+  MonoStreamHeader heap_pdb
+  char* tables_base
+  ulong referenced_tables
+  int* referenced_table_rows
+  MonoTableInfo[56] tables
+  MonoAssembly** references
+  int nreferences
+  MonoImage** modules
+  uint module_count
+  bool* modules_loaded
+  MonoImage** files
+  uint file_count
+  void* aot_module
+  byte[16] aotid
+  MonoAssembly* assembly
+  GHashTable* method_cache
+  MonoInternalHashTable class_cache
+  //...
+
+MonoVTable
+  MonoClass* klass
+  MonoGCDescriptor gc_descr
+  MonoDomain* domain
+  void* type
+  byte* interface_bitmap
+  uint max_interface_id
+  byte rank
+  byte initialized
+  uint:1 remote
+  uint:1 init_failed
+  uint:1 has_static_fields
+  uint:4 gc_bits
+  uint imt_collisions_bitmap
+  MonoRuntimeGenericContext* runtime_generic_context
+  void*[1] vtable
+
+MonoClass
+  MonoClass* element_class
+  MonoClass* cast_class
+  MonoClass** supertypes
+  ushort idepth
+  byte rank
+  int instance_size
+  uint _bitfields1
+  byte min_align
+  uint:4 packing_size
+  uint:1 ghcimpl
+  uint:1 has_finalize
+  uint:1 marshalbyref
+  uint:1 contextbound
+  uint:1 delegate
+  uint:1 gc_descr_inited
+  uint:1 has_cctor
+  uint:1 has_references
+  uint:1 has_static_refs
+  uint:1 no_special_static_fields
+  uint:1 is_com_object
+  uint:1 nested_classes_inited
+  uint:3 class_kind //MonoTypeKind
+  uint:1 interfaces_inited
+  uint:1 simd_type
+  uint:1 has_finalize_inited
+  uint:1 fields_inited
+  uint:1 has_failure
+  uint:1 has_weak_fields
+  MonoClass* parent
+  MonoClass* nested_in
+  MonoImage* image
+  char* name
+  char* name_space
+  uint type_token
+  int vtable_size
+  ushort interface_count
+  uint interface_id
+  uint max_interface_id
+  ushort interface_offsets_count
+  MonoClass** interfaces_packed
+  ushort* interface_offsets_packed
+  byte* interface_bitmap
+  MonoClass** interfaces
+  int sizes
+  MonoClassField* fields
+  MonoMethod** methods
+  MonoType this_arg
+  MonoType byval_arg
+  MonoGCDescriptor gc_descr
+  MonoClassRuntimeInfo* runtime_info
+  MonoMethod** vtable
+  MonoPropertyBag infrequent_data
+  void* unity_user_data
+
+MonoClassDef
+  MonoClass klass
+  uint flags
+  uint first_method_idx
+  uint first_field_idx
+  uint method_count
+  uint field_count
+  MonoClass* next_class_cache
+
+MonoGenericClass
+  MonoClass* container_class
+  //...
+
+MonoClassGenericInst
+  MonoClass klass
+  MonoGenericClass* generic_class

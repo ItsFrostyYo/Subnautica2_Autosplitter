@@ -1,0 +1,15 @@
+Voxif.Helpers.UnrealHelper.Unreal4_13
+
+//CoreUObject/Public/UObject/UnrealType.h
+Property : UField
+  int ArrayDim
+  int ElementSize
+  ulong PropertyFlags //EPropertyFlags
+  ushort RepIndex
+  FName RepNotifyFunc
+  int Offset_Internal
+  int BlueprintReplicationCondition //ELifetimeCondition
+  UProperty* PropertyLinkNext
+  UProperty* NextRef
+  UProperty* DestructorLinkNext
+  UProperty* PostConstructLinkNext

@@ -1,0 +1,55 @@
+Voxif.Helpers.UnrealHelper.Unreal4_23
+
+//CoreUObject/Public/UObject/Class.h
+UStruct : UField
+  FStructBaseChain** StructBaseChainArray
+  int NumStructBasesInChainMinusOne
+
+  UStruct* SuperStruct
+  UField* Children
+  FField* ChildProperties
+  int32 PropertiesSize
+  int32 MinAlignment
+  TArray<uint8> Script
+  FProperty* PropertyLink
+  FProperty* RefLink
+  FProperty* DestructorLink
+  FProperty* PostConstructLink
+  TArray<UObject*> ScriptAndPropertyObjectReferences
+  TArray<TPair<TFieldPath<FField>, int32>>* UnresolvedScriptProperties
+
+
+
+//CoreUObject/Public/UObject/Field.h
+FFieldClass
+  FName Name
+  //...
+
+FFieldVariant
+  void* Container
+  bool* bIsUObject //Pointer?
+
+FField
+  void* VTable
+  FFieldClass* Class
+  FFieldVariant Owner
+  FField* Next
+  FName Name
+  int Flags //EObjectFlags
+
+
+//All UProperties got changed into FProperties
+//Ignore prefix to avoid creating duplicates structs
+//CoreUObject/Public/UObject/UnrealType.h
+Property : FField
+  int ArrayDim
+  int ElementSize
+  ulong PropertyFlags //EPropertyFlags
+  ushort RepIndex
+  byte BlueprintReplicationCondition //ELifetimeCondition
+  int Offset_Internal
+  FName RepNotifyFunc
+  UProperty* PropertyLinkNext
+  UProperty* NextRef
+  UProperty* DestructorLinkNext
+  UProperty* PostConstructLinkNext

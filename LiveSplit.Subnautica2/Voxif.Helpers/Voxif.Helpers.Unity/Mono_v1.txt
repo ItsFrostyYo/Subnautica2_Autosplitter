@@ -1,0 +1,157 @@
+
+
+GList
+  void* data
+  GList* next
+  GList* prev
+  
+MonoAssemblyName
+  char* name
+  char* culture
+  char* hash_value
+  byte* public_key
+  byte[17] public_key_token
+  uint hash_alg
+  uint hash_len
+  uint flags
+  ushort major
+  ushort minor
+  ushort build
+  ushort revision
+
+MonoAssembly
+  int ref_count
+  char* basedir
+  MonoAssemblyName aname
+  MonoImage* image
+  //...
+
+MonoStreamHeader
+  char* data
+  uint size
+
+MonoTableInfo
+  char* base
+  uint:24 rows
+  uint:8 row_size
+  uint size_bitfield
+
+MonoInternalHashTable
+  GHashFunc hash_func
+  MonoInternalHashKeyExtractFunc key_extract
+  MonoInternalHashNextValueFunc next_value
+  int size
+  int num_entries
+  void* table
+
+MonoImage
+  int ref_count
+  void* raw_data_handle
+  char* raw_data
+  uint raw_data_len
+  byte _bitfields1
+  byte _bitfields2
+  char* name
+  char* assembly_name
+  char* module_name
+  char* version
+  short md_version_major
+  short md_version_minor
+  char* guid
+  void* image_info
+  MonoMemPool* mempool
+  char* raw_metadata
+  MonoStreamHeader heap_strings
+  MonoStreamHeader heap_us
+  MonoStreamHeader heap_blob
+  MonoStreamHeader heap_guid
+  MonoStreamHeader heap_tables
+  char* tables_base
+  MonoTableInfo[45] tables
+  MonoAssembly** references
+  MonoImage** modules
+  uint module_count
+  bool* modules_loaded
+  MonoImage** files
+  void* aot_module
+  MonoAssembly* assembly
+  GHashTable* method_cache
+  MonoInternalHashTable class_cache
+  //...
+
+MonoCustomMod
+  uint:1 required
+  uint:31 token
+
+MonoType
+  void* pointer
+  uint:16 attrs
+  uint:8 type //MonoTypeEnum
+  uint:6 num_mods
+  uint:1 byref
+  uint:1 pinned
+  MonoCustomMod[1] modifiers
+
+MonoClassField
+  MonoType* type
+  char* name
+  MonoClass* parent
+  int offset
+
+MonoClassRuntimeInfo
+  ushort max_domain
+  MonoVTable*[] domain_vtables
+
+MonoVTable
+  MonoClass* klass
+  MonoGCDescriptor gc_descr
+  MonoDomain* domain
+  void* data
+  //...
+
+MonoClass
+  MonoClass* element_class
+  MonoClass* cast_class
+  MonoClass** supertypes
+  ushort idepth
+  byte rank
+  int instance_size
+  uint _bitfields1
+  byte min_align
+  uint _bitfields2
+  byte exception_type
+  MonoClass* parent
+  MonoClass* nested_in
+  MonoImage* image
+  char* name
+  char* name_space
+  uint type_token
+  int vtable_size
+  ushort interface_count
+  ushort interface_id
+  ushort max_interface_id
+  ushort interface_offsets_count
+  MonoClass** interfaces_packed
+  ushort* interface_offsets_packed
+  byte* interface_bitmap
+  MonoClass** interfaces
+  int sizes
+  uint flags
+  uint field_first
+  uint field_count
+  uint method_first
+  uint method_count
+  MonoMarshalType* marshal_info
+  MonoClassField* fields
+  MonoMethod** methods
+  MonoType this_arg
+  MonoType byval_arg
+  MonoGenericClass* generic_class
+  MonoGenericContainer* generic_container
+  void* reflection_info
+  void* gc_descr
+  MonoClassRuntimeInfo* runtime_info
+  MonoClass* next_class_cache
+  MonoMethod** vtable
+  MonoClassExt* ext
+  void* user_data

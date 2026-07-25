@@ -1,0 +1,17 @@
+Voxif.Helpers.UnrealHelper.Unreal4_18
+
+//CoreUObject/Public/UObject/UObjectArray.h
+FChunkedFixedUObjectArray
+  FUObjectItem** Objects
+  FUObjectItem* PreAllocatedObjects
+  int MaxElements
+  int NumElements
+  int MaxChunks
+  int NumChunks
+  
+FUObjectArray
+  int ObjFirstGCIndex
+  int ObjLastNonGCIndex
+  int MaxObjectsNotConsideredByGC
+  bool OpenForDisregardForGC
+  FChunkedFixedUObjectArray ObjObjects

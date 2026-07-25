@@ -1,0 +1,13 @@
+.vs/
+
+LiveSplit.Subnautica2/bin/
+LiveSplit.Subnautica2/obj/
+LiveSplit.Subnautica2/External/
+
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+BuildAutosplitter.ps1
+ForceBuildAutosplitter.ps1
+_work/

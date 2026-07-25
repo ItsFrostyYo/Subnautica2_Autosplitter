@@ -1,0 +1,29 @@
+Voxif.Helpers.UnrealHelper.Unreal4_22
+
+//Core/Private/UObject/UnrealNames.cpp
+FNamePool
+  FNameEntryAllocator entries
+  //...
+
+FNameEntryAllocator
+  FRWLock Lock
+  uint CurrentBlock
+  uint CurrentByteCursor
+  void*[] Blocks
+
+
+
+//Core/Public/UObject/NameTypes.h
+FNameEntryHeader
+  ushort:1 bIsWide
+  ushort:5 LowercaseProbeHash
+  ushort:10 Len
+FNameEntry
+  FNameEntryHeader Header
+  char[] Name
+
+FNameEntryId
+  uint Value
+FName
+  FNameEntryId Index
+  uint Number

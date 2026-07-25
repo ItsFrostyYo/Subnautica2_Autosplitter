@@ -1,0 +1,47 @@
+Voxif.Helpers.UnrealHelper.Unreal4_8
+
+FName
+  long Index //Ignore Number
+  //Store both Index & Number as long for alignment
+  //Might change that if Number is needed/FName is changed
+  //union {
+  //  struct {
+  //    int Index
+  //    int Number
+  //  }
+  //  long CompositeValue
+  //}
+
+//CoreUObject/Public/UObject/UObjectArray.h
+FUObjectItem
+  UObjectBase* Object
+  int ClusterAndFlags
+  int SerialNumber
+
+FFixedUObjectArray
+  FUObjectItem* Objects
+  int MaxElements
+  int NumElements
+
+FUObjectArray
+  int ObjFirstGCIndex
+  int ObjLastNonGCIndex
+  int MaxObjectsNotConsideredByGC
+  bool OpenForDisregardForGC
+  FFixedUObjectArray ObjObjects
+  //...
+
+
+
+//CoreUObject/Public/UObject/Class.h
+UStruct : UField
+  UStruct* SuperStruct
+  UField* Children
+  int PropertiesSize
+  int MinAlignment
+  TArray<byte> Script
+  UProperty* PropertyLink
+  UProperty* RefLink
+  UProperty* DestructorLink
+  UProperty* PostConstructLink
+  TArray<UObject*> ScriptObjectReferences

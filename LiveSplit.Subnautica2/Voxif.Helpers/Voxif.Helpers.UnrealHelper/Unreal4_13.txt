@@ -1,0 +1,8 @@
+Voxif.Helpers.UnrealHelper.Unreal4_11
+
+//CoreUObject/Public/UObject/UObjectArray.h
+FUObjectItem
+  UObjectBase* Object
+  int Flags
+  int ClusterIndex
+  int SerialNumber

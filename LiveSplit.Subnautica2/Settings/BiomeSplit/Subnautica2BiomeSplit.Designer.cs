@@ -1,0 +1,166 @@
+﻿namespace LiveSplit.Subnautica2
+{
+    partial class Subnautica2BiomeSplit
+    {
+        /// <summary> 
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary> 
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Component Designer generated code
+
+        /// <summary> 
+        /// Required method for Designer support - do not modify 
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Subnautica2BiomeSplit));
+            this.btnEdit = new System.Windows.Forms.Button();
+            this.btnRemove = new System.Windows.Forms.Button();
+            this.cboBiome1 = new System.Windows.Forms.ComboBox();
+            this.ToolTips = new System.Windows.Forms.ToolTip(this.components);
+            this.picHandle = new System.Windows.Forms.PictureBox();
+            this.l_name = new System.Windows.Forms.Label();
+            this.cboBiome2 = new System.Windows.Forms.ComboBox();
+            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.BtnOptions = new System.Windows.Forms.Button();
+            ((System.ComponentModel.ISupportInitialize)(this.picHandle)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.SuspendLayout();
+            // 
+            // btnEdit
+            // 
+            this.btnEdit.Location = new System.Drawing.Point(440, 43);
+            this.btnEdit.Name = "btnEdit";
+            this.btnEdit.Size = new System.Drawing.Size(26, 23);
+            this.btnEdit.TabIndex = 12;
+            this.btnEdit.Text = "✏";
+            this.btnEdit.UseVisualStyleBackColor = true;
+            // 
+            // btnRemove
+            // 
+            this.btnRemove.Image = ((System.Drawing.Image)(resources.GetObject("btnRemove.Image")));
+            this.btnRemove.Location = new System.Drawing.Point(408, 43);
+            this.btnRemove.Name = "btnRemove";
+            this.btnRemove.Size = new System.Drawing.Size(26, 23);
+            this.btnRemove.TabIndex = 10;
+            this.btnRemove.UseVisualStyleBackColor = true;
+            // 
+            // cboBiome1
+            // 
+            this.cboBiome1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBiome1.FormattingEnabled = true;
+            this.cboBiome1.Location = new System.Drawing.Point(29, 18);
+            this.cboBiome1.Name = "cboBiome1";
+            this.cboBiome1.Size = new System.Drawing.Size(246, 21);
+            this.cboBiome1.TabIndex = 9;
+            this.cboBiome1.SelectedIndexChanged += new System.EventHandler(this.cboBiome_SelectedIndexChanged);
+            // 
+            // ToolTips
+            // 
+            this.ToolTips.ShowAlways = true;
+            // 
+            // picHandle
+            // 
+            this.picHandle.Cursor = System.Windows.Forms.Cursors.SizeAll;
+            this.picHandle.Image = ((System.Drawing.Image)(resources.GetObject("picHandle.Image")));
+            this.picHandle.Location = new System.Drawing.Point(3, 27);
+            this.picHandle.Name = "picHandle";
+            this.picHandle.Size = new System.Drawing.Size(20, 20);
+            this.picHandle.TabIndex = 15;
+            this.picHandle.TabStop = false;
+            this.picHandle.MouseDown += new System.Windows.Forms.MouseEventHandler(this.picHandle_MouseDown);
+            this.picHandle.MouseMove += new System.Windows.Forms.MouseEventHandler(this.picHandle_MouseMove);
+            // 
+            // l_name
+            // 
+            this.l_name.AutoSize = true;
+            this.l_name.Location = new System.Drawing.Point(26, 2);
+            this.l_name.Name = "l_name";
+            this.l_name.Size = new System.Drawing.Size(36, 13);
+            this.l_name.TabIndex = 18;
+            this.l_name.Text = "Biome";
+            // 
+            // cboBiome2
+            // 
+            this.cboBiome2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBiome2.FormattingEnabled = true;
+            this.cboBiome2.Location = new System.Drawing.Point(29, 45);
+            this.cboBiome2.Name = "cboBiome2";
+            this.cboBiome2.Size = new System.Drawing.Size(246, 21);
+            this.cboBiome2.TabIndex = 20;
+            this.cboBiome2.SelectedIndexChanged += new System.EventHandler(this.cboBiome_SelectedIndexChanged);
+            // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox1.Image")));
+            this.pictureBox1.Location = new System.Drawing.Point(281, 18);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(24, 48);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pictureBox1.TabIndex = 21;
+            this.pictureBox1.TabStop = false;
+            // 
+            // BtnOptions
+            // 
+            this.BtnOptions.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.BtnOptions.Location = new System.Drawing.Point(376, 43);
+            this.BtnOptions.Name = "BtnOptions";
+            this.BtnOptions.Size = new System.Drawing.Size(26, 23);
+            this.BtnOptions.TabIndex = 22;
+            this.BtnOptions.Text = "⚙";
+            this.BtnOptions.UseVisualStyleBackColor = true;
+            this.BtnOptions.Click += new System.EventHandler(this.BtnOptions_Click);
+            // 
+            // Subnautica2BiomeSplit
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoSize = true;
+            this.BackColor = System.Drawing.SystemColors.Control;
+            this.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.Controls.Add(this.BtnOptions);
+            this.Controls.Add(this.pictureBox1);
+            this.Controls.Add(this.cboBiome2);
+            this.Controls.Add(this.l_name);
+            this.Controls.Add(this.picHandle);
+            this.Controls.Add(this.btnEdit);
+            this.Controls.Add(this.btnRemove);
+            this.Controls.Add(this.cboBiome1);
+            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Name = "Subnautica2BiomeSplit";
+            this.Size = new System.Drawing.Size(470, 69);
+            ((System.ComponentModel.ISupportInitialize)(this.picHandle)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            this.ResumeLayout(false);
+            this.PerformLayout();
+
+        }
+
+        #endregion
+        public System.Windows.Forms.Button btnEdit;
+        public System.Windows.Forms.Button btnRemove;
+        public System.Windows.Forms.ComboBox cboBiome1;
+        public System.Windows.Forms.ToolTip ToolTips;
+        public System.Windows.Forms.PictureBox picHandle;
+        public System.Windows.Forms.Label l_name;
+        public System.Windows.Forms.ComboBox cboBiome2;
+        public System.Windows.Forms.PictureBox pictureBox1;
+        public System.Windows.Forms.Button BtnOptions;
+    }
+}

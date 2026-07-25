@@ -1,0 +1,18 @@
+Il2cpp_Base
+
+MonoClass
+  void* image
+  void* _data1
+  char* name
+  char* name_space
+  void*[7] _data2
+  MonoClass* parent
+  void*[4] _data3
+  MonoClassField* fields
+  void*[6] _data4
+  void* data
+  int[2] _data6
+  void*[5] _data7
+  int[11] _data8
+  int field_count
+  //...

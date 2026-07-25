@@ -1,0 +1,28 @@
+Voxif.Helpers.UnrealHelper.Unreal4_20
+
+//Core/Public/UObject/NameTypes.h
+FNameEntry
+  FNameEntry* HashNext
+  int Index
+  char[] Name
+
+FName
+  int Index
+  int Number
+
+
+//CoreUObject/Public/UObject/Class.h
+UStruct : UField
+  FStructBaseChain** StructBaseChainArray
+  int NumStructBasesInChainMinusOne
+
+  UStruct* SuperStruct
+  UField* Children
+  int PropertiesSize
+  int MinAlignment
+  TArray<byte> Script
+  UProperty* PropertyLink
+  UProperty* RefLink
+  UProperty* DestructorLink
+  UProperty* PostConstructLink
+  TArray<UObject*> ScriptObjectReferences

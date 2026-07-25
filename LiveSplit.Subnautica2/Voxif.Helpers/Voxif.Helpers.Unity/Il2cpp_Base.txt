@@ -1,0 +1,43 @@
+
+
+MonoAssembly
+  MonoImage* image
+  //...
+
+MonoImage
+  char* assembly_name
+  char* name
+  MonoAssembly* assembly
+  int table_offset
+  int class_count
+  //...
+
+MonoType
+  void* pointer
+  ushort attrs
+  byte type //MonoTypeEnum
+  //...
+
+MonoClassField
+  char* name
+  MonoType* type
+  MonoClass* parent
+  int offset
+  int _data1
+  //...
+
+MonoClass
+  void* image
+  void* _data1
+  char* name
+  char* name_space
+  void*[7] _data2
+  MonoClass* parent
+  void*[4] _data3
+  MonoClassField* fields
+  void*[6] _data4
+  void* data
+  void*[2] _data5
+  int[17] _data6
+  int field_count
+  //...

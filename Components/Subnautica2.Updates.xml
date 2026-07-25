@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<updates>
+    <update version="1.0.1.13">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Couple of Changes Regarding the New Update to the Game</change>
+        </changelog>
+    </update>   
+    <update version="1.0.0.0">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Initial release</change>
+        </changelog>
+    </update>   
+</updates>

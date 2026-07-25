@@ -1,0 +1,9 @@
+Voxif.Helpers.UnrealHelper.Unreal4_0
+
+//CoreUObject/Public/UObject/UObjectArray.h
+FUObjectArray
+  int ObjFirstGCIndex
+  int ObjLastNonGCIndex
+  int OpenForDisregardForGC
+  TStaticIndirectArrayThreadSafeRead<UObjectBase> ObjObjects
+  //...
