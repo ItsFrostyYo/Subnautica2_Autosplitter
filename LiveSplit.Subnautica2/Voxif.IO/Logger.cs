@@ -57,6 +57,32 @@ namespace Voxif.IO {
         public abstract void Log(object value);
     }
 
+    public sealed class CompositeLogger : Logger {
+        private readonly Logger[] loggers;
+
+        public CompositeLogger(params Logger[] loggers) {
+            this.loggers = loggers ?? Array.Empty<Logger>();
+        }
+
+        public override void StartLogger() {
+            foreach(Logger logger in loggers) {
+                logger?.StartLogger();
+            }
+        }
+
+        public override void StopLogger() {
+            foreach(Logger logger in loggers) {
+                logger?.StopLogger();
+            }
+        }
+
+        public override void Log(object value) {
+            foreach(Logger logger in loggers) {
+                logger?.Log(value);
+            }
+        }
+    }
+
     public class ConsoleLogger : Logger {
 
         public override void StartLogger() {

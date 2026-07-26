@@ -73,8 +73,8 @@ namespace Voxif.AutoSplitter {
 
                 if (settings.Reset && Reset())
                 {
-                    timer.Reset();
-                    logger?.Log("Reset");
+                    if (PerformReset())
+                        logger?.Log("Reset");
                 }
                 else if (Split())
                 {
@@ -96,6 +96,11 @@ namespace Voxif.AutoSplitter {
         public virtual bool Reset() => false;
         public virtual bool Loading() => false;
         public virtual TimeSpan? GameTime() => null;
+
+        protected virtual bool PerformReset() {
+            timer.Reset();
+            return true;
+        }
 
         private void OnStart(object sender, EventArgs e) {
             if(GameTimeType == EGameTime.Loading) {

@@ -204,6 +204,9 @@ namespace LiveSplit.Subnautica2
                 case EncySplit encySplit:
                     xmlValue.InnerText = encySplit.EntryKey;
                     break;
+                case StoryGoalSplit storyGoalSplit:
+                    xmlValue.InnerText = storyGoalSplit.Goal.ToString();
+                    break;
                 case BiomeSplit biomeSplit:
                     xmlValue.InnerText = $"{biomeSplit.Biomes.Biome1}:{biomeSplit.Biomes.Biome2}";
                     break;
@@ -308,6 +311,10 @@ namespace LiveSplit.Subnautica2
 
                 case SplitName.Encyclopedia:
                     split = new EncySplit(value, onlySplitOnce, isSubCondition);
+                    break;
+
+                case SplitName.StoryGoal:
+                    split = new StoryGoalSplit(Subnautica2SplitSetting.GetStoryGoal(value), onlySplitOnce, isSubCondition);
                     break;
 
                 case SplitName.Biome:

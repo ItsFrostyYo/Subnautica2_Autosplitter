@@ -127,7 +127,25 @@ namespace LiveSplit.Subnautica2
         private static readonly StringComparer AlphaComparer = StringComparer.OrdinalIgnoreCase;
 
         public static readonly Lazy<IReadOnlyList<ComboItem<SplitName>>> Prefabs =
-            new Lazy<IReadOnlyList<ComboItem<SplitName>>>(() => BuildEnumList<SplitName>(6, e => e.GetDescription()));
+            new Lazy<IReadOnlyList<ComboItem<SplitName>>>(() => new[]
+            {
+                SplitName.AngelCombAdaptation,
+                SplitName.BiobedAdaptation,
+                SplitName.IntroAnalyzingButtonPress,
+                SplitName.IntroReleaseLifepod,
+                SplitName.IntroLifepodAscend,
+                SplitName.RepairTurbine,
+                SplitName.EnterTadpole,
+                SplitName.EnterTadpoleAfterSecondBase,
+                SplitName.SonicResonatorBlastShot,
+                SplitName.FinalObservatoryButtonPress,
+            }
+            .Select(value => new ComboItem<SplitName>
+            {
+                Value = value,
+                Display = value.GetDescription(),
+            })
+            .ToList());
 
         public static readonly Lazy<IReadOnlyList<ComboItem<InventoryItem>>> Items =
             new Lazy<IReadOnlyList<ComboItem<InventoryItem>>>(() => BuildEnumList<InventoryItem>(1, e => Localization.GetDisplayName(e)));
@@ -137,6 +155,9 @@ namespace LiveSplit.Subnautica2
 
         public static readonly Lazy<IReadOnlyList<ComboItem<EncyEntry>>> EncyEntries =
             new Lazy<IReadOnlyList<ComboItem<EncyEntry>>>(() => BuildEnumList<EncyEntry>(1, e => Localization.GetDisplayName(e)));
+
+        public static readonly Lazy<IReadOnlyList<ComboItem<StoryGoal>>> StoryGoals =
+            new Lazy<IReadOnlyList<ComboItem<StoryGoal>>>(() => BuildEnumList<StoryGoal>(1, e => Localization.GetDisplayName(e)));
 
         public static readonly Lazy<IReadOnlyList<ComboItem<Biome>>> Biomes =
             new Lazy<IReadOnlyList<ComboItem<Biome>>>(() => BuildEnumList<Biome>(1, e => Localization.GetDisplayName(e)));
@@ -158,6 +179,9 @@ namespace LiveSplit.Subnautica2
 
         public static readonly Lazy<IReadOnlyList<ComboItem<EncyEntry>>> EncyEntriesAlpha =
             new Lazy<IReadOnlyList<ComboItem<EncyEntry>>>(() => EncyEntries.Value.OrderBy(x => x.Display ?? string.Empty, AlphaComparer).ToList());
+
+        public static readonly Lazy<IReadOnlyList<ComboItem<StoryGoal>>> StoryGoalsAlpha =
+            new Lazy<IReadOnlyList<ComboItem<StoryGoal>>>(() => StoryGoals.Value.OrderBy(x => x.Display ?? string.Empty, AlphaComparer).ToList());
 
         public static readonly Lazy<IReadOnlyList<ComboItem<Biome>>> BiomesAlpha =
             new Lazy<IReadOnlyList<ComboItem<Biome>>>(() => Biomes.Value.OrderBy(x => x.Display ?? string.Empty, AlphaComparer).ToList());
@@ -196,6 +220,9 @@ namespace LiveSplit.Subnautica2
                     BindCombo(setting.ComboBox, alpha ? EncyEntriesAlpha.Value : EncyEntries.Value, setting.ComboBox.SelectedValue);
                     if (encySetting.Split is EncySplit encySplit && encySplit.Entry == EncyEntry.None && !string.IsNullOrWhiteSpace(encySplit.EntryName))
                         setting.ComboBox.Text = encySplit.EntryName;
+                    break;
+                case Subnautica2StoryGoalSplit _:
+                    BindCombo(setting.ComboBox, alpha ? StoryGoalsAlpha.Value : StoryGoals.Value, setting.ComboBox.SelectedValue);
                     break;
                 case Subnautica2BiomeSplit _:
                     BindCombo(setting.ComboBox, alpha ? BiomesAlpha.Value : Biomes.Value, setting.ComboBox.SelectedValue);
@@ -240,6 +267,7 @@ namespace LiveSplit.Subnautica2
         public Subnautica2ItemSplit CreateItemSplit(bool isSubCondition) => CreateSplit<Subnautica2ItemSplit, InventoryItem>(Alpha.Checked ? ItemsAlpha.Value : Items.Value, s => s.cboItem, isSubCondition);
         public Subnautica2BlueprintSplit CreateBlueprintSplit(bool isSubCondition) => CreateSplit<Subnautica2BlueprintSplit, Unlockable>(Alpha.Checked ? BlueprintsAlpha.Value : Blueprints.Value, s => s.cboBlueprint, isSubCondition);
         public Subnautica2EncySplit CreateEncySplit(bool isSubCondition) => CreateSplit<Subnautica2EncySplit, EncyEntry>(Alpha.Checked ? EncyEntriesAlpha.Value : EncyEntries.Value, s => s.cboEncy, isSubCondition);
+        public Subnautica2StoryGoalSplit CreateStoryGoalSplit(bool isSubCondition) => CreateSplit<Subnautica2StoryGoalSplit, StoryGoal>(Alpha.Checked ? StoryGoalsAlpha.Value : StoryGoals.Value, s => s.cboStoryGoal, isSubCondition);
         public Subnautica2CraftSplit CreateCraftSplit(bool isSubCondition) => CreateSplit<Subnautica2CraftSplit, Craftable>(Alpha.Checked ? CraftablesAlpha.Value : Craftables.Value, s => s.cboCraftables, isSubCondition);
         public Subnautica2BuildSplit CreateBuildSplit(bool isSubCondition) => CreateSplit<Subnautica2BuildSplit, Buildable>(Alpha.Checked ? BuildablesAlpha.Value : Buildables.Value, s => s.ComboBox, isSubCondition);
         public Subnautica2BiomeSplit CreateBiomeSplit(bool isSubCondition)
@@ -374,6 +402,12 @@ namespace LiveSplit.Subnautica2
                                 setting.ComboBox.Text = ((EncySplit)setting.Split).EntryName;
                             else
                                 setting.ComboBox.SelectedValue = ((EncySplit)setting.Split).Entry;
+                            break;
+
+                        case StoryGoalSplit s:
+                            setting = new Subnautica2StoryGoalSplit(s) { IsLoadingGetter = () => this.IsLoading };
+                            ApplyDataSources(setting, Alpha.Checked);
+                            setting.ComboBox.SelectedValue = ((StoryGoalSplit)setting.Split).Goal;
                             break;
 
                         case BiomeSplit s:
@@ -631,6 +665,8 @@ namespace LiveSplit.Subnautica2
                 return (Subnautica2SplitSetting)e.Data.GetData(typeof(Subnautica2SplitSetting));
             if (e.Data.GetDataPresent(typeof(Subnautica2BlueprintSplit)))
                 return (Subnautica2SplitSetting)e.Data.GetData(typeof(Subnautica2BlueprintSplit));
+            if (e.Data.GetDataPresent(typeof(Subnautica2StoryGoalSplit)))
+                return (Subnautica2SplitSetting)e.Data.GetData(typeof(Subnautica2StoryGoalSplit));
             if (e.Data.GetDataPresent(typeof(Subnautica2ItemSplit)))
                 return (Subnautica2SplitSetting)e.Data.GetData(typeof(Subnautica2ItemSplit));
             if (e.Data.GetDataPresent(typeof(Subnautica2PrefabSplit)))

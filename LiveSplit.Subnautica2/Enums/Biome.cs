@@ -3,6 +3,7 @@
     public enum Biome
     {
         None,
+        Any,
         AnemoneHills,
         BlightedCoral,
         CollectorLeviathan,

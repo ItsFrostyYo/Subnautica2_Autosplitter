@@ -46,6 +46,8 @@ namespace LiveSplit.Subnautica2
 
         public static EncyEntry GetEncyEntry(string text) => GetEnumValue(text, EncyEntry.None);
 
+        public static StoryGoal GetStoryGoal(string text) => GetEnumValue(text, StoryGoal.None);
+
         public static Unlockable GetUnlockable(string text) => GetEnumValue(text, Unlockable.None);
 
         public static Biome GetBiome(string text) => GetEnumValue(text, Biome.None);
@@ -99,13 +101,34 @@ namespace LiveSplit.Subnautica2
         Blueprint,
         [Description("Encyclopedia"), ToolTip("Splits when you have a certain entry in the encyclopedia unlocked")]
         Encyclopedia,
+        [Description("Story Goal"), ToolTip("Splits when a selected internal story goal is completed")]
+        StoryGoal,
         [Description("Biome"), ToolTip("Splits when you have enter a certain biome from a certain biome")]
         Biome,
         [Description("Craft"), ToolTip("Splits when crafting starts for the selected recipe")]
         Craft,
         [Description("Build"), ToolTip("Splits when a selected Habitat Builder construction completes")]
         Build,
-        
+        [Description("Angel Comb Adaptation"), ToolTip("Splits when the Angel Comb adaptation interaction begins")]
+        AngelCombAdaptation,
+        [Description("Biobed Adaptation"), ToolTip("Splits when the Biobed adaptation is added to the inventory or toolbar")]
+        BiobedAdaptation,
+        [Description("(Intro) Analyze Button Press"), ToolTip("Splits when the analyzer button is pressed during the intro")]
+        IntroAnalyzingButtonPress,
+        [Description("(Intro) Release Lifepod"), ToolTip("Splits when the intro lifepod release lever is used")]
+        IntroReleaseLifepod,
+        [Description("(Intro) Lifepod Ascend"), ToolTip("Splits when the intro lifepod begins ascending")]
+        IntroLifepodAscend,
+        [Description("Repair Turbine"), ToolTip("Splits when the Power Plant turbine is repaired")]
+        RepairTurbine,
+        [Description("Enter Tadpole"), ToolTip("Splits when the player enters a Tadpole")]
+        EnterTadpole,
+        [Description("Enter Tadpole after 2nd Base"), ToolTip("Arms when Tadpole Depth Module Mk. 1 crafting starts, then splits on the next Tadpole entry")]
+        EnterTadpoleAfterSecondBase,
+        [Description("Sonic Resonator Blast"), ToolTip("Splits when a Sonic Resonator blast completes firing")]
+        SonicResonatorBlastShot,
+        [Description("(End) Obesrvatory Button"), ToolTip("Splits when the final observatory button is pressed")]
+        FinalObservatoryButtonPress,
     }
     public class ToolTipAttribute : Attribute
     {

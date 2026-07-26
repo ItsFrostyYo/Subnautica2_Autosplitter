@@ -32,9 +32,15 @@ namespace LiveSplit.Subnautica2
         private void flowMain_DragOver(object sender, DragEventArgs e) => flowMainDragOver(sender, e);
         private void RdSort_CheckedChanged(object sender, EventArgs e) => RdSortCheckedChanged(sender, e);
 
-        public Subnautica2BlueprintSplitSettings(BlueprintSplit split)
+        public Subnautica2BlueprintSplitSettings(Subnautica2Split split)
         {
             InitializeComponent();
+
+            if (split is StoryGoalSplit)
+            {
+                BPSplitOptions_GroupBox.Text = "Story Goal Split";
+                BPSplit_GroupBox.Text = "Story Goal Split";
+            }
 
             Splits = split.Conditions != null ? split.Conditions.Select(c => c.DeepCopy()).ToList() : new List<Subnautica2Split>();
             OnlySplitOnce = split.OnlySplitOnce;

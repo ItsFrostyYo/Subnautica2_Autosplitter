@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Voxif.Helpers.MemoryHelper;
@@ -133,12 +134,93 @@ namespace Voxif.Helpers.Unreal {
             protected abstract IEnumerable<FName> FNameSequence();
             protected abstract IEnumerable<IntPtr> UObjectSequence();
 
+            // Minimal public metadata used by the optional UE5 ProcessEvent reader.
+            // These expose existing reflected offsets; they do not change the
+            // autosplitter's normal pointer-reading behavior.
+            public int UObjectClassOffset => data.GetOffset("UObjectBase", "Class");
+            public int UObjectNameOffset => data.GetOffset("UObjectBase", "Name");
+
+            public IReadOnlyDictionary<string, IReadOnlyList<int>> FindFNameIndices(params string[] patterns) {
+                var uniquePatterns = new List<string>();
+                if(patterns != null) {
+                    foreach(string pattern in patterns) {
+                        if(pattern != null && !uniquePatterns.Contains(pattern)) {
+                            uniquePatterns.Add(pattern);
+                        }
+                    }
+                }
+
+                var matches = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+                bool allExact = true;
+                foreach(string pattern in uniquePatterns) {
+                    matches.Add(pattern, new HashSet<int>());
+                    if(pattern.StartsWith("*", StringComparison.Ordinal)
+                    || pattern.EndsWith("*", StringComparison.Ordinal)) {
+                        allExact = false;
+                    }
+                }
+
+                if(allExact) {
+                    var remaining = new HashSet<string>(uniquePatterns, StringComparer.Ordinal);
+                    foreach(FName fname in FNameSequence()) {
+                        token.ThrowIfCancellationRequested();
+                        if(remaining.Contains(fname.name)) {
+                            matches[fname.name].Add(fname.index);
+                            remaining.Remove(fname.name);
+                        }
+                        if(remaining.Count == 0) {
+                            break;
+                        }
+                    }
+                } else {
+                    foreach(FName fname in FNameSequence()) {
+                        token.ThrowIfCancellationRequested();
+                        foreach(string pattern in uniquePatterns) {
+                            if(FNamePatternMatches(fname.name, pattern)) {
+                                matches[pattern].Add(fname.index);
+                            }
+                        }
+                    }
+                }
+
+                var result = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
+                foreach(string pattern in uniquePatterns) {
+                    var values = new List<int>(matches[pattern]);
+                    values.Sort();
+                    result.Add(pattern, values.AsReadOnly());
+                }
+                return result;
+            }
+
+            private static bool FNamePatternMatches(string value, string pattern) {
+                if(value == null || pattern == null) {
+                    return false;
+                }
+
+                bool startsWildcard = pattern.StartsWith("*", StringComparison.Ordinal);
+                bool endsWildcard = pattern.EndsWith("*", StringComparison.Ordinal);
+                string search = pattern.Replace("*", "");
+
+                if(startsWildcard && endsWildcard) {
+                    return value.IndexOf(search, StringComparison.Ordinal) >= 0;
+                }
+                if(startsWildcard) {
+                    return value.EndsWith(search, StringComparison.Ordinal);
+                }
+                if(endsWildcard) {
+                    return value.StartsWith(search, StringComparison.Ordinal);
+                }
+                return value.Equals(search, StringComparison.Ordinal);
+            }
+
             public abstract Dictionary<string, IntPtr> GetUObjects(params string[] names);
             public abstract IntPtr GetUObject(string name);
             public abstract IntPtr GetUObject(int fname);
             public abstract IntPtr FindLiveUObject(string className);
             public abstract IntPtr FindLiveUObject(string className, Predicate<IntPtr> predicate);
             public abstract IReadOnlyList<IntPtr> FindLiveUObjects(string className, int maxCount = 256);
+            public abstract IReadOnlyDictionary<string, IReadOnlyList<IntPtr>> FindLiveUObjects(int maxCount, params string[] classNames);
+            public abstract IReadOnlyList<IntPtr> FindLiveUObjectsByName(string objectName, string className, int maxCount = 256);
             public abstract string GetUObjectName(IntPtr uobject);
             public abstract string GetUObjectPath(IntPtr uobject);
             public abstract string GetUObjectClassName(IntPtr uobject);
@@ -246,6 +328,113 @@ namespace Voxif.Helpers.Unreal {
 
                 foreach(IntPtr uobject in UObjectSequence()) {
                     try {
+                        IntPtr uclass = UObjectClass(uobject);
+                        if(!classMatches.TryGetValue(uclass, out bool isClassMatch)) {
+                            isClassMatch = ClassInheritsFrom(uclass, className);
+                            classMatches[uclass] = isClassMatch;
+                        }
+
+                        if(!isClassMatch || IsDefaultObjectOrSubobject(uobject)) {
+                            continue;
+                        }
+
+                        result.Add(uobject);
+                        if(result.Count >= maxCount) {
+                            break;
+                        }
+                    } catch {
+                        continue;
+                    }
+                }
+
+                return result;
+            }
+
+            public override IReadOnlyDictionary<string, IReadOnlyList<IntPtr>> FindLiveUObjects(int maxCount, params string[] classNames) {
+                var names = new List<string>();
+                if(classNames != null) {
+                    foreach(string className in classNames) {
+                        if(!string.IsNullOrWhiteSpace(className) && !names.Contains(className)) {
+                            names.Add(className);
+                        }
+                    }
+                }
+
+                var matches = new Dictionary<string, List<IntPtr>>(StringComparer.Ordinal);
+                foreach(string className in names) {
+                    matches.Add(className, new List<IntPtr>());
+                }
+
+                var classMatches = new Dictionary<IntPtr, bool[]>();
+                foreach(IntPtr uobject in UObjectSequence()) {
+                    try {
+                        if(matches.Values.All(values => values.Count >= maxCount)) {
+                            break;
+                        }
+
+                        IntPtr uclass = UObjectClass(uobject);
+                        if(!classMatches.TryGetValue(uclass, out bool[] inherited)) {
+                            inherited = new bool[names.Count];
+                            var hierarchyNames = new HashSet<string>(StringComparer.Ordinal);
+                            IntPtr hierarchyClass = uclass;
+                            for(int depth = 0; depth < 48 && hierarchyClass != default; depth++) {
+                                hierarchyNames.Add(UObjectName(hierarchyClass));
+                                hierarchyClass = SuperStruct(hierarchyClass);
+                            }
+                            for(int i = 0; i < names.Count; i++) {
+                                inherited[i] = hierarchyNames.Contains(names[i]);
+                            }
+                            classMatches[uclass] = inherited;
+                        }
+
+                        bool hasMatch = false;
+                        for(int i = 0; i < names.Count; i++) {
+                            if(inherited[i] && matches[names[i]].Count < maxCount) {
+                                hasMatch = true;
+                                break;
+                            }
+                        }
+                        if(!hasMatch) {
+                            continue;
+                        }
+
+                        if(IsDefaultObjectOrSubobject(uobject)) {
+                            continue;
+                        }
+
+                        for(int i = 0; i < names.Count; i++) {
+                            List<IntPtr> values = matches[names[i]];
+                            if(inherited[i] && values.Count < maxCount) {
+                                values.Add(uobject);
+                            }
+                        }
+                    } catch {
+                        continue;
+                    }
+                }
+
+                var result = new Dictionary<string, IReadOnlyList<IntPtr>>(StringComparer.Ordinal);
+                foreach(string className in names) {
+                    result.Add(className, matches[className].AsReadOnly());
+                }
+                return result;
+            }
+
+            public override IReadOnlyList<IntPtr> FindLiveUObjectsByName(string objectName, string className, int maxCount = 256) {
+                var result = new List<IntPtr>();
+                IReadOnlyDictionary<string, IReadOnlyList<int>> resolved = FindFNameIndices(objectName);
+                if(!resolved.TryGetValue(objectName, out IReadOnlyList<int> indices) || indices.Count == 0) {
+                    return result;
+                }
+
+                var nameIndices = new HashSet<int>(indices);
+                var classMatches = new Dictionary<IntPtr, bool>();
+                foreach(IntPtr uobject in UObjectSequence()) {
+                    try {
+                        if(!nameIndices.Contains(UObjectFName(uobject))) {
+                            continue;
+                        }
+
                         IntPtr uclass = UObjectClass(uobject);
                         if(!classMatches.TryGetValue(uclass, out bool isClassMatch)) {
                             isClassMatch = ClassInheritsFrom(uclass, className);
@@ -1460,7 +1649,16 @@ namespace Voxif.Helpers.Unreal {
 
             public override int GetFieldElementSize(string className, string fieldName) {
                 IntPtr field = FindField(className, fieldName);
-                return field == default ? 0 : PropertyElementSize(field);
+                if(field == default) {
+                    return 0;
+                }
+
+                if(FieldClassName(field) == "ArrayProperty") {
+                    IntPtr inner = ArrayInner(field);
+                    return inner == default ? 0 : PropertyElementSize(inner);
+                }
+
+                return PropertyElementSize(field);
             }
 
             public override string GetFieldDebugInfo(string className, string fieldName) {
@@ -1478,6 +1676,10 @@ namespace Voxif.Helpers.Unreal {
                     result += inner == default
                         ? " inner=0"
                         : $" inner={inner.ToString("X")} innerClass={FieldClassName(inner)} innerName={FieldName(inner)} innerType={PropertyType(inner)} innerSize=0x{PropertyElementSize(inner):X}";
+                } else if(fieldClass == "BoolProperty") {
+                    result += $" byteOffset=0x{game.Read<byte>(field + data.GetOffset("BoolProperty", "ByteOffset")):X2}" +
+                        $" byteMask=0x{game.Read<byte>(field + data.GetOffset("BoolProperty", "ByteMask")):X2}" +
+                        $" fieldMask=0x{game.Read<byte>(field + data.GetOffset("BoolProperty", "FieldMask")):X2}";
                 }
                 return result;
             }
@@ -2087,6 +2289,13 @@ namespace Voxif.Helpers.Unreal {
                     yield break;
                 }
 
+                // GUObjectArray grows substantially while a save loads. Keeping the
+                // element/chunk counts captured at initial attachment makes every
+                // subsequently-created gameplay object permanently invisible.
+                if(!TryRefreshUObjectArrayLayout(game, layout)) {
+                    yield break;
+                }
+
                 int fuobjectSize = data.GetSelfAlignedSize("FUObjectItem");
                 int remaining = layout.NumElements > 0 ? layout.NumElements : Int32.MaxValue;
                 int maxChunks = layout.NumChunks > 0 ? layout.NumChunks : 256;
@@ -2129,7 +2338,7 @@ namespace Voxif.Helpers.Unreal {
                 if(layout == null && TryFindUObjectArrayLayout(game, objectsPtr, out layout)) {
                     uobjectArrayLayout = layout;
                 }
-                if(layout == null || objectIndex >= layout.NumElements) {
+                if(layout == null || !TryRefreshUObjectArrayLayout(game, layout) || objectIndex >= layout.NumElements) {
                     return default;
                 }
 
@@ -2142,6 +2351,32 @@ namespace Voxif.Helpers.Unreal {
                 IntPtr item = chunk + (objectIndex & 0xFFFF) * fuobjectSize;
                 int serial = game.Read<int>(item + data.GetOffset("FUObjectItem", "SerialNumber"));
                 return objectSerial != 0 && serial != objectSerial ? default : game.Read<IntPtr>(item);
+            }
+
+            private bool TryRefreshUObjectArrayLayout(ProcessWrapper wrapper, UObjectArrayLayout layout) {
+                if(layout == null || !LooksLikeDataPtr(layout.ObjObjects)) {
+                    return false;
+                }
+
+                IntPtr chunks = wrapper.Read<IntPtr>(layout.ObjObjects + data.GetOffset("FChunkedFixedUObjectArray", "Objects"));
+                int maxElements = wrapper.Read<int>(layout.ObjObjects + data.GetOffset("FChunkedFixedUObjectArray", "MaxElements"));
+                int numElements = wrapper.Read<int>(layout.ObjObjects + data.GetOffset("FChunkedFixedUObjectArray", "NumElements"));
+                int maxChunks = wrapper.Read<int>(layout.ObjObjects + data.GetOffset("FChunkedFixedUObjectArray", "MaxChunks"));
+                int numChunks = wrapper.Read<int>(layout.ObjObjects + data.GetOffset("FChunkedFixedUObjectArray", "NumChunks"));
+
+                if(!LooksLikeDataPtr(chunks)
+                || numElements <= 0 || maxElements < numElements || maxElements > 0x4000000
+                || numChunks <= 0 || maxChunks < numChunks || maxChunks > 0x10000) {
+                    return false;
+                }
+
+                layout.Chunks = chunks;
+                layout.MaxElements = maxElements;
+                layout.NumElements = numElements;
+                layout.MaxChunks = maxChunks;
+                layout.NumChunks = numChunks;
+                layout.FirstChunk = wrapper.Read<IntPtr>(chunks);
+                return LooksLikeDataPtr(layout.FirstChunk);
             }
 
             protected override void LogUObjectArrayDiagnostics() {
@@ -2364,12 +2599,18 @@ namespace Voxif.Helpers.Unreal {
     }
 
     public interface IUnrealHelper {
+        int UObjectClassOffset { get; }
+        int UObjectNameOffset { get; }
+        IReadOnlyDictionary<string, IReadOnlyList<int>> FindFNameIndices(params string[] patterns);
+
         Dictionary<string, IntPtr> GetUObjects(params string[] names);
         IntPtr GetUObject(string name);
         IntPtr GetUObject(int fname);
         IntPtr FindLiveUObject(string className);
         IntPtr FindLiveUObject(string className, Predicate<IntPtr> predicate);
         IReadOnlyList<IntPtr> FindLiveUObjects(string className, int maxCount = 256);
+        IReadOnlyDictionary<string, IReadOnlyList<IntPtr>> FindLiveUObjects(int maxCount, params string[] classNames);
+        IReadOnlyList<IntPtr> FindLiveUObjectsByName(string objectName, string className, int maxCount = 256);
         string GetUObjectName(IntPtr uobject);
         string GetUObjectPath(IntPtr uobject);
         string GetUObjectClassName(IntPtr uobject);

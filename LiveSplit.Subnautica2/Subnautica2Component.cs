@@ -14,24 +14,24 @@ namespace LiveSplit.Subnautica2
 {
     public class Subnautica2Component : Voxif.AutoSplitter.Component
     {
-        private const bool EnableDebugConsole = true;
+        private const bool EnableDebugConsole = false;
+        protected override EGameTime GameTimeType => EGameTime.Loading;
         private readonly Subnautica2Memory memory;
         private readonly LiveSplitState _state;
-        private readonly TimerModel timerModel;
         public readonly HashSet<Subnautica2Split> alreadySplit = new HashSet<Subnautica2Split>();
 
         public Subnautica2Component(LiveSplitState state) : base(state)
         {
+            string logPath = "_" + Factory.ExAssembly.GetName().Name.Substring(10) + ".log";
             logger = EnableDebugConsole
-                ? (Logger)new ConsoleLogger()
-                : new FileLogger("_" + Factory.ExAssembly.GetName().Name.Substring(10) + ".log");
+                ? (Logger)new CompositeLogger(new ConsoleLogger(), new FileLogger(logPath))
+                : new FileLogger(logPath);
             logger.StartLogger();
 
             Localization.Load();
             _state = state;
             settings = new Subnautica2Settings(state);
             memory = new Subnautica2Memory(state, this, logger, settings);
-            timerModel = new TimerModel() { CurrentState = state };
         }
 
         public override bool Update()
@@ -56,9 +56,17 @@ namespace LiveSplit.Subnautica2
             if (!ok || !memory.pointersInitialized)
                 return false;
 
-            TryResetOnMainMenu();
 
             return true;
+        }
+
+        public override void Dispose()
+        {
+            // The base component only detaches timer callbacks. Dispose the
+            // memory reader first so its UE5 event hook is restored while the
+            // game process and logger are still available.
+            memory?.Dispose();
+            base.Dispose();
         }
 
         public override bool Start()
@@ -66,9 +74,42 @@ namespace LiveSplit.Subnautica2
             if (memory.startedTimerBefore || !memory.pointersInitialized)
                 return false;
 
-            
+            bool survivalStart = settings.IntroStart && memory.SurvivalStartTriggered();
+            bool creativeStart = settings.CreativeStart && memory.CreativeStartTriggered();
+            if (!survivalStart && !creativeStart)
+                return false;
 
-            return false;
+            memory.startedTimerBefore = true;
+            logger.Log(survivalStart ? "Survival Start triggered" : "Creative Start triggered");
+            return true;
+        }
+
+        public override bool Reset() => memory.MainMenuEntered();
+
+        protected override bool PerformReset()
+        {
+            bool hasGoldSegment = settings.AskForGoldSave
+                && Enumerable.Range(0, _state.Run.Count)
+                    .Any(index => LiveSplitStateHelper.CheckBestSegment(
+                        _state, index, _state.CurrentTimingMethod));
+
+            if (!hasGoldSegment)
+            {
+                timer.Reset();
+                return true;
+            }
+
+            DialogResult result = MessageBox.Show(
+                _state.Form,
+                "Save splits before resetting?",
+                "Subnautica 2 Auto Reset",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question);
+            if (result == DialogResult.Cancel)
+                return false;
+
+            timer.Reset(result == DialogResult.Yes);
+            return true;
         }
 
         public override bool Split()
@@ -127,52 +168,6 @@ namespace LiveSplit.Subnautica2
         }
 
         public override bool Loading() => memory.ShouldPause();
-
-        private void TryResetOnMainMenu()
-        {
-            return; // TODO: Add check for main menu and remove this return statement
-            if (!settings.Reset)
-                return;
-            if (_state.CurrentPhase == TimerPhase.NotRunning)
-                return;
-
-            Form ui = _state.Form;
-            Action doReset = () =>
-            {
-                bool GoldSegment = false;
-                for (int index = 0; index < _state.Run.Count; index++)
-                {
-                    if (LiveSplitStateHelper.CheckBestSegment(_state, index, _state.CurrentTimingMethod))
-                    {
-                        GoldSegment = true;
-                        break;
-                    }
-                }
-
-                bool save = true;
-                if (settings.AskForGoldSave && GoldSegment)
-                {
-                    DialogResult r = MessageBox.Show(
-                        ui,
-                        "Save splits before resetting?",
-                        "Reset",
-                        MessageBoxButtons.YesNoCancel,
-                        MessageBoxIcon.Question);
-
-                    if (r == DialogResult.Cancel)
-                        return;
-
-                    save = (r == DialogResult.Yes);
-                }
-
-                timerModel.Reset(save);
-            };
-
-            if (ui.InvokeRequired)
-                ui.BeginInvoke(doReset);
-            else
-                doReset();
-        }
 
         public override void OnReset()
         {

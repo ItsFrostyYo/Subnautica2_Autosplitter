@@ -50,6 +50,7 @@
     <Compile Include="Enums\EncyEntry.cs" />
     <Compile Include="Enums\GameVersion.cs" />
     <Compile Include="Enums\InventoryItem.cs" />
+    <Compile Include="Enums\StoryGoal.cs" />
     <Compile Include="Enums\Unlockable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -170,11 +171,20 @@
     <Compile Include="Settings\PrefabSplit\Subnautica2PrefabSplit.Designer.cs">
       <DependentUpon>Subnautica2PrefabSplit.cs</DependentUpon>
     </Compile>
+    <Compile Include="Settings\StoryGoalSplit\Subnautica2StoryGoalSplit.cs" />
     <Compile Include="Settings\Subnautica2SplitSetting.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Subnautica2Component.cs" />
     <Compile Include="Subnautica2Memory.cs" />
+    <Compile Include="UE5Events\Subnautica2Ue5EventRegistry.cs" />
+    <Compile Include="UE5Events\Ue5FunctionEvents.cs" />
+    <Compile Include="UE5Events\Ue5FunctionFlag.cs" />
+    <Compile Include="UE5Events\Internal\RemoteProcessMemory.cs" />
+    <Compile Include="UE5Events\Internal\Ue5EventScanner.cs" />
+    <Compile Include="UE5Events\Internal\Ue5FunctionHook.cs" />
+    <Compile Include="UE5Events\Internal\Ue5NativeMethods.cs" />
+    <Compile Include="UE5Events\Internal\X64CodeBuilder.cs" />
     <Compile Include="Settings\Subnautica2Settings.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -302,7 +312,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\English.json" />
     <EmbeddedResource Include="Resources\RecipeNames.json" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

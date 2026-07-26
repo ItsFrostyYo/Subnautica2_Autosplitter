@@ -1,5 +1,6 @@
 using LiveSplit.Subnautica2.Enums;
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -12,7 +13,7 @@ namespace LiveSplit.Subnautica2
         private readonly Button btnEdit;
         private readonly Button btnRemove;
         private readonly Button btnOptions;
-        private readonly Label dragHandle;
+        private readonly PictureBox dragHandle;
         private int mouseX;
         private int mouseY;
 
@@ -21,18 +22,19 @@ namespace LiveSplit.Subnautica2
         public Subnautica2BuildSplit(BuildSplit split)
         {
             _split = split ?? new BuildSplit(Buildable.None, true, false);
+            var resources = new ComponentResourceManager(typeof(Subnautica2CraftSplit));
             AutoSize = true;
             BackColor = SystemColors.Control;
             BorderStyle = BorderStyle.FixedSingle;
             Margin = new Padding(2);
             Size = new Size(469, 47);
 
-            dragHandle = new Label { AutoSize = false, Cursor = Cursors.SizeAll, Font = new Font(Font.FontFamily, 12F), Location = new Point(3, 15), Size = new Size(20, 23), Text = "↕" };
+            dragHandle = new PictureBox { Cursor = Cursors.SizeAll, Image = (Image)resources.GetObject("picHandle.Image"), Location = new Point(3, 12), Name = "picHandle", Size = new Size(20, 20) };
             var label = new Label { AutoSize = true, Location = new Point(26, 2), Text = "Build" };
-            cboBuildables = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(29, 18), Size = new Size(246, 21), DisplayMember = "Display", ValueMember = "Value" };
-            btnOptions = new Button { Location = new Point(376, 16), Size = new Size(26, 23), Text = "⚙" };
-            btnRemove = new Button { Location = new Point(408, 16), Size = new Size(26, 23), Text = "✕" };
-            btnEdit = new Button { Location = new Point(440, 16), Size = new Size(26, 23), Text = "✏" };
+            cboBuildables = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(29, 18), Name = "cboBuildables", Size = new Size(246, 21), DisplayMember = "Display", ValueMember = "Value" };
+            btnOptions = new Button { Font = new Font("Microsoft Sans Serif", 8.25F), Location = new Point(376, 16), Name = "BtnOptions", Size = new Size(26, 23), Text = "⚙", UseVisualStyleBackColor = true };
+            btnRemove = new Button { Image = (Image)resources.GetObject("btnRemove.Image"), Location = new Point(408, 16), Name = "btnRemove", Size = new Size(26, 23), UseVisualStyleBackColor = true };
+            btnEdit = new Button { Location = new Point(440, 16), Name = "btnEdit", Size = new Size(26, 23), Text = "✏", UseVisualStyleBackColor = true };
 
             cboBuildables.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboBuildables.SelectedIndexChanged += (o, e) => { if (!IsLoading && cboBuildables.SelectedValue is Buildable value) _split.Buildable = value; };

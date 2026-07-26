@@ -2,7 +2,6 @@
 {
     public enum GameVersion
     {
-        v113109,
         v121347,
     }
 }

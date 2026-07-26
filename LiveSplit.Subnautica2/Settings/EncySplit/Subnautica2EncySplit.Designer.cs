@@ -63,7 +63,7 @@
             this.cboEncy.FormattingEnabled = true;
             this.cboEncy.Location = new System.Drawing.Point(29, 18);
             this.cboEncy.Name = "cboEncy";
-            this.cboEncy.Size = new System.Drawing.Size(246, 21);
+            this.cboEncy.Size = new System.Drawing.Size(341, 21);
             this.cboEncy.TabIndex = 9;
             this.cboEncy.SelectedIndexChanged += new System.EventHandler(this.cboName_SelectedIndexChanged);
             // 
