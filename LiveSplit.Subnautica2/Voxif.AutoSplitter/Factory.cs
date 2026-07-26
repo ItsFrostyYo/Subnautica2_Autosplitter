@@ -16,7 +16,7 @@ namespace LiveSplit.Subnautica2 {
 
         public string XMLURL => UpdateURL + "Components/Subnautica2.Updates.xml";
 
-        public string UpdateURL => "https://raw.githubusercontent.com/Sprinter31/LiveSplit.Subnautica2/master/";
+        public string UpdateURL => "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica2Autosplitter/main/";
 
         public Version Version => ExAssembly.GetName().Version;
 
