@@ -167,7 +167,7 @@ namespace LiveSplit.Subnautica2
             }
         }
 
-        public override bool Loading() => memory.ShouldPause();
+        public override bool Loading() => settings.AscendCutsceneRemoval && memory.ShouldPause();
 
         public override void OnReset()
         {

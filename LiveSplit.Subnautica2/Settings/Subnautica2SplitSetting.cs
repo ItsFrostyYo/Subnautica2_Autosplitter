@@ -131,6 +131,8 @@ namespace LiveSplit.Subnautica2
         EnterTadpoleAfterSecondBase,
         [Description("Sonic Resonator Blast"), ToolTip("Splits when a Sonic Resonator Blast Completes after Firing")]
         SonicResonatorBlastShot,
+        [Description("Scan Rosetta Stone"), ToolTip("Splits when you Scan the Rosetta Stone and Unlock Story Goal Rosetta_TranslationUnlocked")]
+        ScanRosettaStone,
         [Description("(End) Obesrvatory Button"), ToolTip("Splits when the Final Observatory Button is Pressed")]
         FinalObservatoryButtonPress,
     }

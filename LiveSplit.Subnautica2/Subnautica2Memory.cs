@@ -627,6 +627,9 @@ namespace LiveSplit.Subnautica2
                                 () => enterTadpoleAfterSecondBaseArmed
                                 && IsInBiome(Biome.Observatory)
                                 && Ue5EventTriggered("EnterTadpole"));
+                    subConditions.Add(
+                                SplitName.ScanRosettaStone,
+                                () => HasStoryGoal(StoryGoal.Rosetta_TranslationUnlocked));            
             
             splitConditions = new Dictionary<SplitName, Func<bool>>
             {
@@ -675,7 +678,10 @@ namespace LiveSplit.Subnautica2
 
                     splitConditions.Add(
                                SplitName.EnterTadpoleAfterSecondBase,
-                               EnterTadpoleAfterSecondBaseTriggered);           
+                               EnterTadpoleAfterSecondBaseTriggered);   
+                    splitConditions.Add(
+                               SplitName.ScanRosettaStone,
+                               () => HasNewStoryGoal(StoryGoal.Rosetta_TranslationUnlocked));                  
         }
 
         public override bool Update()
@@ -1109,6 +1115,7 @@ private void UpdateSecondBaseArming()
     if (Needs(
             SplitName.StoryGoal,
             SplitName.SecondBase,
+            SplitName.ScanRosettaStone,
             SplitName.EnterTadpoleAfterSecondBase))
     {
         UpdateStoryGoals();

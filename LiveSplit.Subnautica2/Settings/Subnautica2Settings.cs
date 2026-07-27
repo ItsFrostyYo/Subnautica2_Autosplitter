@@ -25,7 +25,7 @@ namespace LiveSplit.Subnautica2
         public bool CreativeStart { get; set; }
         public bool Reset { get; set; }
         public bool AskForGoldSave { get; set; }
-        public bool SRCLoadtimes { get; set; }
+        public bool AscendCutsceneRemoval { get; set; } = true;
         public static bool OrderedLiveSplit { get; set; }
         public static bool OrderedAutoSplits { get; set; }
 
@@ -147,7 +147,7 @@ namespace LiveSplit.Subnautica2
             CreativeStart = chkCreativeStart.Checked;
             Reset = chkReset.Checked;
             AskForGoldSave = chkAskForGoldSave.Checked;
-            SRCLoadtimes = chkSRCLoadtimes.Checked;
+            AscendCutsceneRemoval = chkAscendCutsceneRemoval.Checked;
             OrderedLiveSplit = cbOrderedLiveSplit.Checked;
             OrderedAutoSplits = cbOrderedAutoSplits.Checked;
 
@@ -162,7 +162,7 @@ namespace LiveSplit.Subnautica2
             AddBool(document, xmlSettings, "CreativeStart", CreativeStart);
             AddBool(document, xmlSettings, "Reset", Reset);
             AddBool(document, xmlSettings, "AskForGoldSave", AskForGoldSave);
-            AddBool(document, xmlSettings, "SRCLoadtimes", SRCLoadtimes);
+            AddBool(document, xmlSettings, "AscendCutsceneRemoval", AscendCutsceneRemoval);
             AddBool(document, xmlSettings, "OrderedLiveSplit", OrderedLiveSplit);
             AddBool(document, xmlSettings, "OrderedAutoSplits", OrderedAutoSplits);
 
@@ -251,7 +251,7 @@ namespace LiveSplit.Subnautica2
                     CreativeStart = ReadBool(settings, "CreativeStart");
                     Reset = ReadBool(settings, "Reset");
                     AskForGoldSave = ReadBool(settings, "AskForGoldSave");
-                    SRCLoadtimes = ReadBool(settings, "SRCLoadtimes");
+                    AscendCutsceneRemoval = ReadBool(settings, "AscendCutsceneRemoval", true);
                     OrderedLiveSplit = ReadBool(settings, "OrderedLiveSplit");
                     OrderedAutoSplits = ReadBool(settings, "OrderedAutoSplits");
 
@@ -364,7 +364,7 @@ namespace LiveSplit.Subnautica2
             chkCreativeStart.Checked = CreativeStart;
             chkReset.Checked = Reset;
             chkAskForGoldSave.Checked = AskForGoldSave;
-            chkSRCLoadtimes.Checked = SRCLoadtimes;
+            chkAscendCutsceneRemoval.Checked = AscendCutsceneRemoval;
             cbOrderedLiveSplit.Checked = OrderedLiveSplit;
             cbOrderedAutoSplits.Checked = OrderedAutoSplits;
 

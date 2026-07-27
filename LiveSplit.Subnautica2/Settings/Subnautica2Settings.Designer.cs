@@ -37,9 +37,9 @@
             this.ButtonSplitGenerator = new System.Windows.Forms.Button();
             this.btnAddExplo = new System.Windows.Forms.Button();
             this.Other_GroupBox = new System.Windows.Forms.GroupBox();
+            this.chkAscendCutsceneRemoval = new System.Windows.Forms.CheckBox();
             this.cbOrderedAutoSplits = new System.Windows.Forms.CheckBox();
             this.cbOrderedLiveSplit = new System.Windows.Forms.CheckBox();
-            this.chkSRCLoadtimes = new System.Windows.Forms.CheckBox();
             this.chkAskForGoldSave = new System.Windows.Forms.CheckBox();
             this.btnAddSplit = new System.Windows.Forms.Button();
             this.StartReset_GroupBox = new System.Windows.Forms.GroupBox();
@@ -153,6 +153,7 @@
             // 
             this.Other_GroupBox.Controls.Add(this.cbOrderedAutoSplits);
             this.Other_GroupBox.Controls.Add(this.cbOrderedLiveSplit);
+            this.Other_GroupBox.Controls.Add(this.chkAscendCutsceneRemoval);
             this.Other_GroupBox.Controls.Add(this.chkAskForGoldSave);
             this.Other_GroupBox.Location = new System.Drawing.Point(296, 15);
             this.Other_GroupBox.Name = "Other_GroupBox";
@@ -164,7 +165,7 @@
             // cbOrderedAutoSplits
             // 
             this.cbOrderedAutoSplits.AutoSize = true;
-            this.cbOrderedAutoSplits.Location = new System.Drawing.Point(5, 61);
+            this.cbOrderedAutoSplits.Location = new System.Drawing.Point(5, 79);
             this.cbOrderedAutoSplits.Name = "cbOrderedAutoSplits";
             this.cbOrderedAutoSplits.Size = new System.Drawing.Size(151, 17);
             this.cbOrderedAutoSplits.TabIndex = 3;
@@ -176,7 +177,7 @@
             // cbOrderedLiveSplit
             // 
             this.cbOrderedLiveSplit.AutoSize = true;
-            this.cbOrderedLiveSplit.Location = new System.Drawing.Point(5, 43);
+            this.cbOrderedLiveSplit.Location = new System.Drawing.Point(5, 61);
             this.cbOrderedLiveSplit.Name = "cbOrderedLiveSplit";
             this.cbOrderedLiveSplit.Size = new System.Drawing.Size(141, 17);
             this.cbOrderedLiveSplit.TabIndex = 2;
@@ -186,23 +187,19 @@
             this.cbOrderedLiveSplit.UseVisualStyleBackColor = true;
             this.cbOrderedLiveSplit.CheckedChanged += new System.EventHandler(this.cbOrderedLiveSplit_CheckedChanged);
             // 
-            // chkSRCLoadtimes
+            // chkAscendCutsceneRemoval
             // 
-            this.chkSRCLoadtimes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.chkSRCLoadtimes.AutoSize = true;
-            this.chkSRCLoadtimes.Checked = true;
-            this.chkSRCLoadtimes.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkSRCLoadtimes.Location = new System.Drawing.Point(5, 35);
-            this.chkSRCLoadtimes.Margin = new System.Windows.Forms.Padding(2);
-            this.chkSRCLoadtimes.Name = "chkSRCLoadtimes";
-            this.chkSRCLoadtimes.Size = new System.Drawing.Size(99, 17);
-            this.chkSRCLoadtimes.TabIndex = 1;
-            this.chkSRCLoadtimes.Text = "SRC Loadtimes";
-            this.ToolTips.SetToolTip(this.chkSRCLoadtimes, "This will add time to the actual load times to match the IGT shown on Speedrun.co" +
-        "m (can be up to 0.1s inaccurate)\r\nUnchecking this will not turn off the load rem" +
-        "oval");
-            this.chkSRCLoadtimes.UseVisualStyleBackColor = true;
-            this.chkSRCLoadtimes.CheckedChanged += new System.EventHandler(this.ControlChanged);
+            this.chkAscendCutsceneRemoval.AutoSize = true;
+            this.chkAscendCutsceneRemoval.Checked = true;
+            this.chkAscendCutsceneRemoval.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkAscendCutsceneRemoval.Location = new System.Drawing.Point(5, 43);
+            this.chkAscendCutsceneRemoval.Name = "chkAscendCutsceneRemoval";
+            this.chkAscendCutsceneRemoval.Size = new System.Drawing.Size(157, 17);
+            this.chkAscendCutsceneRemoval.TabIndex = 1;
+            this.chkAscendCutsceneRemoval.Text = "Ascend Cutscene-Removal";
+            this.ToolTips.SetToolTip(this.chkAscendCutsceneRemoval, "Enables Game Time and Removes the Ascend Cutscene as Load Times, averages about 1 Minute and 25 Seconds but can Still Vary");
+            this.chkAscendCutsceneRemoval.UseVisualStyleBackColor = true;
+            this.chkAscendCutsceneRemoval.CheckedChanged += new System.EventHandler(this.ControlChanged);
             // 
             // chkAskForGoldSave
             // 
@@ -373,7 +370,7 @@
         private System.Windows.Forms.CheckBox chkIntroStart;
         private System.Windows.Forms.ToolTip ToolTips;
         private System.Windows.Forms.GroupBox Other_GroupBox;
-        private System.Windows.Forms.CheckBox chkSRCLoadtimes;
+        private System.Windows.Forms.CheckBox chkAscendCutsceneRemoval;
         private System.Windows.Forms.CheckBox chkAskForGoldSave;
         private System.Windows.Forms.CheckBox chkReset;
         private System.Windows.Forms.Button btnAddExplo;

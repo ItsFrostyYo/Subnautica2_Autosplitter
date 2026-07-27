@@ -139,6 +139,7 @@ namespace LiveSplit.Subnautica2
                 SplitName.EnterTadpole,
                 SplitName.SecondBase,
                 SplitName.EnterTadpoleAfterSecondBase,
+                SplitName.ScanRosettaStone,
                 SplitName.SonicResonatorBlastShot,
                 SplitName.FinalObservatoryButtonPress,
             }
