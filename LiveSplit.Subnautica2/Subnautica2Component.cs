@@ -14,7 +14,7 @@ namespace LiveSplit.Subnautica2
 {
     public class Subnautica2Component : Voxif.AutoSplitter.Component
     {
-        private const bool EnableDebugConsole = true;
+        private const bool EnableDebugConsole = false;
         protected override EGameTime GameTimeType => EGameTime.Loading;
         private readonly Subnautica2Memory memory;
         private readonly LiveSplitState _state;
