@@ -95,39 +95,43 @@ namespace LiveSplit.Subnautica2
     {
         [Description("None"), ToolTip("None")]
         None,
-        [Description("Inventory"), ToolTip("Splits when you pickup/drop a certain item")]
+        [Description("Inventory"), ToolTip("Splits when you Pickup/Drop a Certain Item")]
         Inventory,
-        [Description("Blueprint"), ToolTip("Splits when you have a certain blueprint unlocked")]
+        [Description("Blueprint"), ToolTip("Splits when you Have/Unlock a Certain Blueprint")]
         Blueprint,
-        [Description("Encyclopedia"), ToolTip("Splits when you have a certain entry in the encyclopedia unlocked")]
+        [Description("Encyclopedia"), ToolTip("Splits when you Have/Unlock a Certain Databank Entry in the Encyclopedia")]
         Encyclopedia,
-        [Description("Story Goal"), ToolTip("Splits when a selected internal story goal is completed")]
+        [Description("Story Goal"), ToolTip("Splits when you Have/Unlock a Certain Story Goal")]
         StoryGoal,
-        [Description("Biome"), ToolTip("Splits when you have enter a certain biome from a certain biome")]
+        [Description("Biome"), ToolTip("Splits when you Transition from a Certain Biome to another Certain Biome, or Condition a Split to a Specific Biome")]
         Biome,
-        [Description("Craft"), ToolTip("Splits when crafting starts for the selected recipe")]
+        [Description("Craft"), ToolTip("Splits when you Start Crafting an Item inside a Fabricator, Vehicle Fabricator, Modification Station or Processor Station")]
         Craft,
-        [Description("Build"), ToolTip("Splits when a selected Habitat Builder construction completes")]
+        [Description("Build"), ToolTip("Splits when you Complete Building a Constructable using a Builder Tool")]
         Build,
-        [Description("Angel Comb Adaptation"), ToolTip("Splits when the Angel Comb adaptation interaction begins")]
+        [Description("Angel Comb Adaptation"), ToolTip("Splits when the Animation to Interact with an Angel Comb Begins (Delayed Slightly Compared to Interaction)")]
         AngelCombAdaptation,
-        [Description("Biobed Adaptation"), ToolTip("Splits when the Biobed adaptation is added to the inventory or toolbar")]
+        [Description("Biobed Adaptation"), ToolTip("Splits on Any Biobed Adaptations (Endurance, Dexterity) for Inventory or Toolbar Expansion")]
         BiobedAdaptation,
-        [Description("(Intro) Analyze Button Press"), ToolTip("Splits when the analyzer button is pressed during the intro")]
+        [Description("(Intro) Unlock Door"), ToolTip("Splits when the Locked Door is Unlocked During the Intro")]
+        IntroUnlockDoor,
+        [Description("(Intro) Analyze Button Press"), ToolTip("Splits when the Analyzer Button is Pressed during the Intro")]
         IntroAnalyzingButtonPress,
-        [Description("(Intro) Release Lifepod"), ToolTip("Splits when the intro lifepod release lever is used")]
+        [Description("(Intro) Release Lifepod"), ToolTip("Splits when the Intro Lifepod is Release after Pressing the Levers")]
         IntroReleaseLifepod,
-        [Description("(Intro) Lifepod Ascend"), ToolTip("Splits when the intro lifepod begins ascending")]
+        [Description("(Intro) Lifepod Ascend"), ToolTip("Splits when the Intro Lifepod Begins Ascending")]
         IntroLifepodAscend,
-        [Description("Repair Turbine"), ToolTip("Splits when the Power Plant turbine is repaired")]
+        [Description("Repair Turbine"), ToolTip("Splits when the Power Plant Turbine is Fully Repaired")]
         RepairTurbine,
-        [Description("Enter Tadpole"), ToolTip("Splits when the player enters a Tadpole")]
+        [Description("Enter Tadpole"), ToolTip("Splits when you Enter a Tadpole")]
         EnterTadpole,
-        [Description("Enter Tadpole after 2nd Base"), ToolTip("Arms when Tadpole Depth Module Mk. 1 crafting starts, then splits on the next Tadpole entry")]
+        [Description("Split on 2nd Base"), ToolTip("Splits when you Build a Room in the Observatory Biome after Unlocking HumanOutpost_Detected Story Goal (Only works for NME Base Location)")]
+        SecondBase,
+        [Description("Split on Enter Tadpole after 2nd Base"), ToolTip("Splits when you Enter a Tadpole in the Observatory Biome after Unlocking HumanOutpost_Detected Story Goal (Only works for NME Base Location)")]
         EnterTadpoleAfterSecondBase,
-        [Description("Sonic Resonator Blast"), ToolTip("Splits when a Sonic Resonator blast completes firing")]
+        [Description("Sonic Resonator Blast"), ToolTip("Splits when a Sonic Resonator Blast Completes after Firing")]
         SonicResonatorBlastShot,
-        [Description("(End) Obesrvatory Button"), ToolTip("Splits when the final observatory button is pressed")]
+        [Description("(End) Obesrvatory Button"), ToolTip("Splits when the Final Observatory Button is Pressed")]
         FinalObservatoryButtonPress,
     }
     public class ToolTipAttribute : Attribute

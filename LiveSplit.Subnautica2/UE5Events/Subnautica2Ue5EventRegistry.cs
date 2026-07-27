@@ -71,8 +71,16 @@ namespace LiveSplit.Subnautica2.UE5Events
             // Start/Reset Events
             Add("MainMenuConstruct", "WBP_MainLobbyScreen_C", null, "Construct");
             Add("CreativeStart", "BP_CreativeModePlayerStart_C", null, "OnStartConditionsApplied");
-            
             Add("DeepStartCinematicTagRemoved", "BPC_DeepStartIntro_C", null, "Removed_D54A696449B06FC2AE42B1971D15CB2F");
+            // Start on Input/Interaction (Unused Currently)
+            Add("InteractWithStorage", "BP_Character_01_C", "BP_Character_01_C", "OnInteractWithOtherInventory");
+            Add("FirstMovement", "GA_Walk_C", "GA_Walk_C", "OnStarted_CD32F07B44EEF144D8A18C86FCFC3E47");
+            Add("InteractWithFabricator", "WBP_FabricatorScreen_C", "WBP_FabricatorScreen_C", "RecipeListEntriesRefreshed");
+            Add("FirstJump", "BP_Character_01_C", "BP_Character_01_C", "OnJumped");
+            Add("OpenPDA", "WBP_Inventory_C", "WBP_Inventory_C", "ExecuteUbergraph_WBP_Inventory");
+            Add("InteractWithNoA", "WBP_ComputerTextInterface_C", "WBP_ComputerTextInterface_C", "UpdateDialogueOptions");
+            Add("FirstSwim", "GA_Swim_C", "GA_Swim_C", "OnStarted_E7B4EFF4450EE32D27781F951D040059");
+            Add("InteractWithBiomodStation", "WBP_CharacterCustomizationScreen_C", "WBP_CharacterCustomizationScreen_C", "ValidItemsChanged");
             
             // Prefabricated Split Events
             // Adaptations
@@ -80,6 +88,7 @@ namespace LiveSplit.Subnautica2.UE5Events
             Add("BiobedAdaptationInventory", "SN2PlayerUpgradesPlayerStateComponent", null, "OnEventTrackerIncreaseInventoryEvent");
             Add("BiobedAdaptationToolbar", "SN2PlayerUpgradesPlayerStateComponent", null, "OnEventTrackerIncreaseToolbarEvent");
             // Intro 
+            Add("IntroUnlockDoor", "BP_SlidingDoor_C", "BP_SlidingDoor_C_UAID_C87F54AE2B72FF0402", "BndEvt__BP_SlidingDoor_LockComponent_K2Node_ComponentBoundEvent_0_LockDelegate__DelegateSignature");
             Add("IntroAnalyzingButtonPress", "BP_ScanningButton_C", null, "BroadcastButtonPressed");
             Add("IntroReleaseLifepod", "BP_LifepodBay_Chunk_Hatch_C", null, "RightLever");
             // Misc
@@ -92,9 +101,22 @@ namespace LiveSplit.Subnautica2.UE5Events
             // Load Removal Events
             Add("IntroLifepodAscend", "BP_NarrativeSignal_C", null, "OnUnlocked_62920D1448BD71509596E5B554437304");
             Add("IntroCutsceneLoadRemovalEnd", "BP_LifepodManager_C", null, "OnSequenceEnd");
-
+  
             // [BP_BlightNode_C] [BP_BlightNode_C_UAID_C87F54AE2B72E68402] [OnBroken]
             // [BP_BlightNode_C] [BP_BlightNode_C_UAID_C87F54AE2B72E68402] [OnSequencePlay]
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
 
             #endregion Add Events Here
         }

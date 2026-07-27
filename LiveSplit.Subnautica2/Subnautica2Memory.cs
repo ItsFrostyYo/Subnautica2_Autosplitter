@@ -51,6 +51,7 @@ namespace LiveSplit.Subnautica2
             {
                 { SplitName.AngelCombAdaptation, new[] { "AdaptationRippleAfterInteraction" } },
                 { SplitName.BiobedAdaptation, new[] { "BiobedAdaptationInventory", "BiobedAdaptationToolbar" } },
+                { SplitName.IntroUnlockDoor, new[] { "IntroUnlockDoor" } },
                 { SplitName.IntroAnalyzingButtonPress, new[] { "IntroAnalyzingButtonPress" } },
                 { SplitName.IntroReleaseLifepod, new[] { "IntroReleaseLifepod" } },
                 { SplitName.IntroLifepodAscend, new[] { "IntroLifepodAscend" } },
@@ -94,6 +95,8 @@ namespace LiveSplit.Subnautica2
         private bool survivalStartThisUpdate;
         private bool gameplayInitializationPending;
         private string gameplayInitializationReason = string.Empty;
+        private bool secondBaseReached;
+        private bool secondBaseArmed;
         private bool enterTadpoleAfterSecondBaseArmed;
         private int deepStartCinematicRemovalCount;
         private bool loadRemovalActive;
@@ -502,6 +505,8 @@ namespace LiveSplit.Subnautica2
                     survivalStartThisUpdate = false;
                     gameplayInitializationPending = false;
                     gameplayInitializationReason = string.Empty;
+                    secondBaseReached = false;
+                    secondBaseArmed = false;
                     enterTadpoleAfterSecondBaseArmed = false;
                     deepStartCinematicRemovalCount = 0;
                     loadRemovalActive = false;
@@ -607,11 +612,22 @@ namespace LiveSplit.Subnautica2
             };
 
             foreach (SplitName splitName in PrefabricatedEventNames.Keys)
-                subConditions.Add(splitName, () => PrefabricatedEventTriggered(splitName));
-            subConditions.Add(
-                SplitName.EnterTadpoleAfterSecondBase,
-                () => enterTadpoleAfterSecondBaseArmed && Ue5EventTriggered("EnterTadpole"));
+                    subConditions.Add(
+                               splitName,
+                                () => PrefabricatedEventTriggered(splitName));
 
+                    subConditions.Add(
+                                SplitName.SecondBase,
+                                () => secondBaseArmed
+                                && IsInBiome(Biome.Observatory)
+                                && currentBuildEvents.Contains(Buildable.Room));
+
+                    subConditions.Add(
+                                SplitName.EnterTadpoleAfterSecondBase,
+                                () => enterTadpoleAfterSecondBaseArmed
+                                && IsInBiome(Biome.Observatory)
+                                && Ue5EventTriggered("EnterTadpole"));
+            
             splitConditions = new Dictionary<SplitName, Func<bool>>
             {
                 { SplitName.Inventory,            () => {
@@ -649,10 +665,17 @@ namespace LiveSplit.Subnautica2
             };
 
             foreach (SplitName splitName in PrefabricatedEventNames.Keys)
-                splitConditions.Add(splitName, () => PrefabricatedEventTriggered(splitName));
-            splitConditions.Add(
-                SplitName.EnterTadpoleAfterSecondBase,
-                EnterTadpoleAfterSecondBaseTriggered);
+                    splitConditions.Add(
+                               splitName,
+                               () => PrefabricatedEventTriggered(splitName));
+
+                    splitConditions.Add(
+                               SplitName.SecondBase,
+                               SecondBaseTriggered);
+
+                    splitConditions.Add(
+                               SplitName.EnterTadpoleAfterSecondBase,
+                               EnterTadpoleAfterSecondBaseTriggered);           
         }
 
         public override bool Update()
@@ -709,6 +732,8 @@ namespace LiveSplit.Subnautica2
                 playerDiscoveryAllowed = false;
                 gameplayInitializationPending = false;
                 gameplayInitializationReason = string.Empty;
+                secondBaseReached = false;
+                secondBaseArmed = false;
                 enterTadpoleAfterSecondBaseArmed = false;
                 ClearPlayerSessionState();
                 logger.Log("Main menu entered");
@@ -916,14 +941,60 @@ namespace LiveSplit.Subnautica2
                 && eventNames.Any(Ue5EventTriggered);
         }
 
-        private bool EnterTadpoleAfterSecondBaseTriggered()
-        {
-            if (!enterTadpoleAfterSecondBaseArmed || !Ue5EventTriggered("EnterTadpole"))
-                return false;
+        private bool SecondBaseTriggered()
+{
+    if (!secondBaseArmed
+        || !IsInBiome(Biome.Observatory)
+        || !currentBuildEvents.Contains(Buildable.Room))
+    {
+        return false;
+    }
 
-            enterTadpoleAfterSecondBaseArmed = false;
-            return true;
-        }
+    secondBaseArmed = false;
+    return true;
+}
+
+private bool EnterTadpoleAfterSecondBaseTriggered()
+{
+    if (!enterTadpoleAfterSecondBaseArmed
+        || !IsInBiome(Biome.Observatory)
+        || !Ue5EventTriggered("EnterTadpole"))
+    {
+        return false;
+    }
+
+    enterTadpoleAfterSecondBaseArmed = false;
+    return true;
+}
+
+private void UpdateSecondBaseArming()
+{
+    // HumanOutpost_Detected is the prerequisite. The player does not
+    // need to be inside Observatory at the moment it becomes available.
+    if (secondBaseReached
+        || !HasStoryGoal(StoryGoal.HumanOutpost_Detected))
+    {
+        return;
+    }
+
+    secondBaseReached = true;
+
+    if (Needs(SplitName.SecondBase))
+    {
+        secondBaseArmed = true;
+        logger.Log(
+            "Split on 2nd Base armed by HumanOutpost_Detected; " +
+            "waiting for a Room build inside Observatory");
+    }
+
+    if (Needs(SplitName.EnterTadpoleAfterSecondBase))
+    {
+        enterTadpoleAfterSecondBaseArmed = true;
+        logger.Log(
+            "Enter Tadpole after 2nd Base armed by HumanOutpost_Detected; " +
+            "waiting for Tadpole entry inside Observatory");
+    }
+}
 
         public bool CreativeStartTriggered() => creativeStartThisUpdate;
         public bool SurvivalStartTriggered() => survivalStartThisUpdate;
@@ -995,65 +1066,77 @@ namespace LiveSplit.Subnautica2
         }
 
         private void UpdateMemoryWatchers()
-        {
-            if (EnableEnumDiscoveryLogs)
-                UpdateEnumDiscoveryLogs();
+{
+    if (EnableEnumDiscoveryLogs)
+        UpdateEnumDiscoveryLogs();
 
-            // Craft and Build are immediately usable after a start. Process
-            // their player-owned pointers before scheduling any fallback
-            // UObject discovery for biome/inventory/databank systems.
-            if (Needs(SplitName.Craft, SplitName.Build, SplitName.EnterTadpoleAfterSecondBase))
-                UpdateCrafting();
+    // Craft and Build are immediately usable after a start. Process
+    // their player-owned pointers before scheduling any fallback
+    // UObject discovery for biome/inventory/databank systems.
+    if (Needs(SplitName.Craft, SplitName.Build, SplitName.SecondBase))
+        UpdateCrafting();
 
-            if (Needs(SplitName.Biome) || EnableBiomeDiscoveryLogs || EnableBiomeProbeLogs)
-            {
-                EnsureBiomeProbe();
-                UpdateBiome();
-            }
+    if (Needs(
+            SplitName.Biome,
+            SplitName.SecondBase,
+            SplitName.EnterTadpoleAfterSecondBase)
+        || EnableBiomeDiscoveryLogs
+        || EnableBiomeProbeLogs)
+    {
+        EnsureBiomeProbe();
+        UpdateBiome();
+    }
 
-            if (Needs(SplitName.Inventory, SplitName.Craft, SplitName.Build, SplitName.EnterTadpoleAfterSecondBase) || EnableEnumDiscoveryLogs)
-                EnsureInventoryProbe();
+    if (Needs(
+            SplitName.Inventory,
+            SplitName.Craft,
+            SplitName.Build,
+            SplitName.SecondBase)
+        || EnableEnumDiscoveryLogs)
+    {
+        EnsureInventoryProbe();
+    }
 
-            if (Needs(SplitName.Inventory) || EnableEnumDiscoveryLogs)
-                UpdateInventory();
+    if (Needs(SplitName.Inventory) || EnableEnumDiscoveryLogs)
+        UpdateInventory();
 
-            if (Needs(SplitName.Blueprint) || EnableEnumDiscoveryLogs)
-                UpdateBlueprints();
+    if (Needs(SplitName.Blueprint) || EnableEnumDiscoveryLogs)
+        UpdateBlueprints();
 
-            if (Needs(SplitName.Encyclopedia) || EnableEnumDiscoveryLogs)
-                UpdateEncyclopedia();
+    if (Needs(SplitName.Encyclopedia) || EnableEnumDiscoveryLogs)
+        UpdateEncyclopedia();
 
-            if (Needs(SplitName.StoryGoal))
-                UpdateStoryGoals();
+    if (Needs(
+            SplitName.StoryGoal,
+            SplitName.SecondBase,
+            SplitName.EnterTadpoleAfterSecondBase))
+    {
+        UpdateStoryGoals();
+    }
 
-        }
+    UpdateSecondBaseArming();
+}
 
         private void UpdateCrafting()
         {
             currentCraftEvents.Clear();
             currentBuildEvents.Clear();
 
-            if (Needs(SplitName.Build))
+            if (Needs(SplitName.Build, SplitName.SecondBase))
             {
                 EnsureBuilderTargets();
                 UpdateBuilderConstruction();
             }
 
-            if (Needs(SplitName.Craft, SplitName.EnterTadpoleAfterSecondBase))
+            if (Needs(SplitName.Craft))
             {
                 EnsureCraftingTargets();
                 UpdateProcessorCrafting();
                 UpdateNormalCrafting();
 
-                if (!enterTadpoleAfterSecondBaseArmed
-                    && currentCraftEvents.Contains(Craftable.Tadpole_CrushDepthUpgrade_01))
-                {
-                    enterTadpoleAfterSecondBaseArmed = true;
-                    logger.Log("Enter Tadpole after 2nd Base armed by Tadpole Depth Module Mk. 1 craft");
                 }
             }
 
-        }
 
         private void UpdateNormalCrafting()
         {
