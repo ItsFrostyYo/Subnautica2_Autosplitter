@@ -31,13 +31,18 @@ namespace LiveSplit.Subnautica2
 
             dragHandle = new PictureBox { Cursor = Cursors.SizeAll, Image = (Image)resources.GetObject("picHandle.Image"), Location = new Point(3, 12), Name = "picHandle", Size = new Size(20, 20) };
             var label = new Label { AutoSize = true, Location = new Point(26, 2), Text = "Build" };
-            cboBuildables = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(29, 18), Name = "cboBuildables", Size = new Size(246, 21), DisplayMember = "Display", ValueMember = "Value" };
+            cboBuildables = new ComboBox { Location = new Point(29, 18), Name = "cboBuildables", Size = new Size(343, 21), DisplayMember = "Display", ValueMember = "Value" };
+            ConfigureSearchableCombo(cboBuildables);
             btnOptions = new Button { Font = new Font("Microsoft Sans Serif", 8.25F), Location = new Point(376, 16), Name = "BtnOptions", Size = new Size(26, 23), Text = "⚙", UseVisualStyleBackColor = true };
             btnRemove = new Button { Image = (Image)resources.GetObject("btnRemove.Image"), Location = new Point(408, 16), Name = "btnRemove", Size = new Size(26, 23), UseVisualStyleBackColor = true };
             btnEdit = new Button { Location = new Point(440, 16), Name = "btnEdit", Size = new Size(26, 23), Text = "✏", UseVisualStyleBackColor = true };
 
             cboBuildables.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
-            cboBuildables.SelectedIndexChanged += (o, e) => { if (!IsLoading && cboBuildables.SelectedValue is Buildable value) _split.Buildable = value; };
+            cboBuildables.SelectedIndexChanged += (o, e) =>
+            {
+                if (!IsLoading && !IsComboSearchUpdating(cboBuildables) && cboBuildables.SelectedValue is Buildable value)
+                    _split.Buildable = value;
+            };
             btnOptions.Click += BtnOptionsClick;
             dragHandle.MouseDown += (o, e) => { mouseX = e.X; mouseY = e.Y; };
             dragHandle.MouseMove += (o, e) => { if (e.Button == MouseButtons.Left && Math.Abs(mouseX - e.X) + Math.Abs(mouseY - e.Y) > 6) DoDragDrop(this, DragDropEffects.All); };

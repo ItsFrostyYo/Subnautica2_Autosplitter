@@ -1,5 +1,6 @@
 using LiveSplit.Subnautica2.Enums;
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -11,7 +12,10 @@ namespace LiveSplit.Subnautica2
         private readonly Button btnEdit;
         private readonly Button btnRemove;
         private readonly Button btnOptions;
+        private readonly PictureBox dragHandle;
         private readonly StoryGoalSplit split;
+        private int mouseX;
+        private int mouseY;
 
         public Subnautica2StoryGoalSplit() : this(new StoryGoalSplit(StoryGoal.None, true, false)) { }
 
@@ -24,27 +28,49 @@ namespace LiveSplit.Subnautica2
             Margin = new Padding(2);
             Size = new Size(469, 47);
 
+            var resources = new ComponentResourceManager(typeof(Subnautica2CraftSplit));
+            dragHandle = new PictureBox
+            {
+                Cursor = Cursors.SizeAll,
+                Image = (Image)resources.GetObject("picHandle.Image"),
+                Location = new Point(3, 12),
+                Name = "picHandle",
+                Size = new Size(20, 20)
+            };
             var label = new Label { AutoSize = true, Location = new Point(26, 2), Text = "Story Goal" };
             cboStoryGoal = new ComboBox
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
                 DisplayMember = "Display",
                 ValueMember = "Value",
                 Location = new Point(29, 18),
                 Size = new Size(343, 21)
             };
+            ConfigureSearchableCombo(cboStoryGoal);
             cboStoryGoal.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboStoryGoal.SelectedIndexChanged += (o, e) =>
             {
-                if (!IsLoading && cboStoryGoal.SelectedValue is StoryGoal goal)
+                if (!IsLoading && !IsComboSearchUpdating(cboStoryGoal) && cboStoryGoal.SelectedValue is StoryGoal goal)
                     split.Goal = goal;
             };
 
             btnOptions = new Button { Location = new Point(376, 16), Size = new Size(26, 23), Text = "\u2699" };
-            btnRemove = new Button { Location = new Point(408, 16), Size = new Size(26, 23), Text = "\u2715" };
+            btnRemove = new Button
+            {
+                Image = (Image)resources.GetObject("btnRemove.Image"),
+                Location = new Point(408, 16),
+                Size = new Size(26, 23)
+            };
             btnEdit = new Button { Location = new Point(440, 16), Size = new Size(26, 23), Text = "\u270F" };
             btnOptions.Click += BtnOptionsClick;
+            dragHandle.MouseDown += (o, e) => { mouseX = e.X; mouseY = e.Y; };
+            dragHandle.MouseMove += (o, e) =>
+            {
+                if (e.Button == MouseButtons.Left
+                    && Math.Abs(mouseX - e.X) + Math.Abs(mouseY - e.Y) > 6)
+                    DoDragDrop(this, DragDropEffects.All);
+            };
 
+            Controls.Add(dragHandle);
             Controls.Add(label);
             Controls.Add(cboStoryGoal);
             Controls.Add(btnOptions);

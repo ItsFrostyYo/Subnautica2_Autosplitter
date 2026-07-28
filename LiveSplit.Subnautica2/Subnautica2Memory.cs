@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Voxif.AutoSplitter;
-using Voxif.Helpers.Unity;
 using Voxif.Helpers.Unreal;
 using Voxif.IO;
 using Voxif.Memory;
@@ -44,6 +43,7 @@ namespace LiveSplit.Subnautica2
         private static readonly string[] WorldHudClassNames = new[] { "SN2WorldHUD", "BP_SN2WorldHUD_C" };
         private static readonly Lazy<Dictionary<string, EncyEntry>> EncyEntryAliases = new Lazy<Dictionary<string, EncyEntry>>(BuildEncyEntryAliases);
         private static readonly TimeSpan EncyclopediaUpdateInterval = TimeSpan.FromMilliseconds(1000);
+        private static readonly TimeSpan BiomeUpdateInterval = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan CurrentBiomeLogInterval = TimeSpan.FromSeconds(2);
         private const int EnumDiscoveryMaxObjects = 1024;
         private static readonly IReadOnlyDictionary<SplitName, string[]> PrefabricatedEventNames =
@@ -56,6 +56,7 @@ namespace LiveSplit.Subnautica2
                 { SplitName.IntroReleaseLifepod, new[] { "IntroReleaseLifepod" } },
                 { SplitName.IntroLifepodAscend, new[] { "IntroLifepodAscend" } },
                 { SplitName.RepairTurbine, new[] { "RepairTurbine" } },
+                { SplitName.BuildProcessor, new[] { "BuildProcessor" } },
                 { SplitName.EnterTadpole, new[] { "EnterTadpole" } },
                 { SplitName.SonicResonatorBlastShot, new[] { "SonicResonatorBlastShot" } },
                 { SplitName.FinalObservatoryButtonPress, new[] { "FinalObservatoryButtonPress" } },
@@ -82,6 +83,7 @@ namespace LiveSplit.Subnautica2
         private DateTime nextEncyclopediaUpdateAttempt = DateTime.MinValue;
         private DateTime nextCurrentBiomeLog = DateTime.MinValue;
         private DateTime nextMemoryUpdate = DateTime.MinValue;
+        private DateTime nextBiomeUpdate = DateTime.MinValue;
         private IntPtr playerVolumeTracker = IntPtr.Zero;
         private IntPtr worldZoneTracker = IntPtr.Zero;
         private Task<IntPtr> worldZoneTrackerRefreshTask;
@@ -114,7 +116,6 @@ namespace LiveSplit.Subnautica2
         private readonly Dictionary<IntPtr, Craftable> craftableRecipeCache = new Dictionary<IntPtr, Craftable>();
         private readonly Dictionary<IntPtr, Buildable> buildableRecipeCache = new Dictionary<IntPtr, Buildable>();
         private readonly HashSet<IntPtr> loggedBuilderGhostIdentity = new HashSet<IntPtr>();
-        private readonly Dictionary<IntPtr, Biome> biomeObjectCache = new Dictionary<IntPtr, Biome>();
         private Dictionary<InventoryItem, int> currentInventoryChanges = new Dictionary<InventoryItem, int>();
         private readonly HashSet<Craftable> currentCraftEvents = new HashSet<Craftable>();
         private readonly HashSet<Buildable> currentBuildEvents = new HashSet<Buildable>();
@@ -143,7 +144,7 @@ namespace LiveSplit.Subnautica2
         private DateTime nextProcessorCraftingUpdate = DateTime.MinValue;
         private Buildable pendingBuilderBuildable = Buildable.None;
         private IntPtr pendingBuilderSource;
-        private IntPtr builderLastDiscoveryGhost;
+        private DateTime nextBuilderIdentityRetry = DateTime.MinValue;
         private bool craftBaselineInitialized;
         private List<IntPtr> inventoryStorageObjects = new List<IntPtr>();
         private Task<List<IntPtr>> inventoryStorageRefreshTask;
@@ -167,6 +168,10 @@ namespace LiveSplit.Subnautica2
         private bool blueprintBaselineInitialized;
         private bool storyGoalBaselineInitialized;
         private DateTime nextStoryGoalUpdateAttempt = DateTime.MinValue;
+        private IntPtr cachedStoryGoalContainer;
+        private int cachedStoryGoalPointerCount = -1;
+        private int cachedStoryGoalEntryCount = -1;
+        private int cachedStoryGoalUnlockCount = -1;
         private HashSet<StoryGoal> currentStoryGoals = new HashSet<StoryGoal>();
         private HashSet<StoryGoal> previousStoryGoals = new HashSet<StoryGoal>();
         private List<string> encyclopediaPrimaryEntryKeys = new List<string>();
@@ -434,6 +439,7 @@ namespace LiveSplit.Subnautica2
         private static readonly TimeSpan CraftingTargetsMissingRetryInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan CraftingTargetsFailureRetryInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan ProcessorCraftingUpdateInterval = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan BuilderIdentityRetryInterval = TimeSpan.FromMilliseconds(200);
         private const int SN2DatabankViewModel_Entries = 0x68;
         private const int SN2DatabankViewModel_Root = 0x78;
         private const int SN2DatabankViewModel_StoryGoalContainer = 0x80;
@@ -493,6 +499,7 @@ namespace LiveSplit.Subnautica2
                     nextEncyclopediaUpdateAttempt = DateTime.MinValue;
                     nextCurrentBiomeLog = DateTime.MinValue;
                     nextMemoryUpdate = DateTime.MinValue;
+                    nextBiomeUpdate = DateTime.MinValue;
                     playerVolumeTracker = IntPtr.Zero;
                     worldZoneTracker = IntPtr.Zero;
                     worldZoneTrackerRefreshTask = null;
@@ -549,7 +556,7 @@ namespace LiveSplit.Subnautica2
                     nextProcessorCraftingUpdate = DateTime.MinValue;
                     pendingBuilderBuildable = Buildable.None;
                     pendingBuilderSource = IntPtr.Zero;
-                    builderLastDiscoveryGhost = IntPtr.Zero;
+                    nextBuilderIdentityRetry = DateTime.MinValue;
                     craftBaselineInitialized = false;
                     curPickUpCounts.Clear();
                     curDropCounts.Clear();
@@ -562,11 +569,11 @@ namespace LiveSplit.Subnautica2
                     craftableRecipeCache.Clear();
                     buildableRecipeCache.Clear();
                     loggedBuilderGhostIdentity.Clear();
-                    biomeObjectCache.Clear();
                     recipeListViewModels.Clear();
                     recipeListViewModelRefreshTask = null;
                     recipeListViewModelsInvalidated = false;
                     recipeListViewModelsChanged = false;
+                    blueprintBaselineInitialized = false;
                     databankViewModels.Clear();
                     databankViewModelRefreshTask = null;
                     databankViewModelsInvalidated = false;
@@ -585,6 +592,14 @@ namespace LiveSplit.Subnautica2
                     encyclopediaReadTaskResetsBaseline = false;
                     encyclopediaReadGeneration++;
                     encyclopediaReadTaskGeneration = encyclopediaReadGeneration;
+                    currentStoryGoals.Clear();
+                    previousStoryGoals.Clear();
+                    storyGoalBaselineInitialized = false;
+                    nextStoryGoalUpdateAttempt = DateTime.MinValue;
+                    cachedStoryGoalContainer = IntPtr.Zero;
+                    cachedStoryGoalPointerCount = -1;
+                    cachedStoryGoalEntryCount = -1;
+                    cachedStoryGoalUnlockCount = -1;
                     KnownBlueprints.Clear();
                     KnownBlueprintsOld.Clear();
                     Encyclopedia.Clear();
@@ -622,7 +637,7 @@ namespace LiveSplit.Subnautica2
                                 SplitName.SecondBase,
                                 () => secondBaseArmed
                                 && IsInBiome(Biome.Observatory)
-                                && currentBuildEvents.Contains(Buildable.Room));
+                                && Ue5EventTriggered("BuildHatch"));
 
                     subConditions.Add(
                                 SplitName.EnterTadpoleAfterSecondBase,
@@ -769,7 +784,10 @@ namespace LiveSplit.Subnautica2
                 logger.Log("Intro load removal ended");
             }
 
-            if (!survivalStartStoryGoalArmed
+            if (!startedTimerBefore
+                && settings != null
+                && settings.IntroStart
+                && !survivalStartStoryGoalArmed
                 && HasStoryGoal(StoryGoal.Storygoal_Player_Ch1_FirstPrint3))
             {
                 survivalStartStoryGoalArmed = true;
@@ -963,6 +981,10 @@ namespace LiveSplit.Subnautica2
             previousStoryGoals.Clear();
             storyGoalBaselineInitialized = false;
             nextStoryGoalUpdateAttempt = DateTime.MinValue;
+            cachedStoryGoalContainer = IntPtr.Zero;
+            cachedStoryGoalPointerCount = -1;
+            cachedStoryGoalEntryCount = -1;
+            cachedStoryGoalUnlockCount = -1;
         }
 
         private bool PrefabricatedEventTriggered(SplitName splitName)
@@ -975,7 +997,7 @@ namespace LiveSplit.Subnautica2
 {
     if (!secondBaseArmed
         || !IsInBiome(Biome.Observatory)
-        || !currentBuildEvents.Contains(Buildable.Room))
+        || !Ue5EventTriggered("BuildHatch"))
     {
         return false;
     }
@@ -1014,7 +1036,7 @@ private void UpdateSecondBaseArming()
         secondBaseArmed = true;
         logger.Log(
             "Split on 2nd Base armed by HumanOutpost_Detected; " +
-            "waiting for a Room build inside Observatory");
+            "waiting for the Build Hatch event inside Observatory");
     }
 
     if (Needs(SplitName.EnterTadpoleAfterSecondBase))
@@ -1103,7 +1125,7 @@ private void UpdateSecondBaseArming()
     // Craft and Build are immediately usable after a start. Process
     // their player-owned pointers before scheduling any fallback
     // UObject discovery for biome/inventory/databank systems.
-    if (Needs(SplitName.Craft, SplitName.Build, SplitName.SecondBase))
+    if (Needs(SplitName.Craft, SplitName.Build))
         UpdateCrafting();
 
     if (Needs(
@@ -1120,8 +1142,7 @@ private void UpdateSecondBaseArming()
     if (Needs(
             SplitName.Inventory,
             SplitName.Craft,
-            SplitName.Build,
-            SplitName.SecondBase)
+            SplitName.Build)
         || EnableEnumDiscoveryLogs)
     {
         EnsureInventoryProbe();
@@ -1153,7 +1174,7 @@ private void UpdateSecondBaseArming()
             currentCraftEvents.Clear();
             currentBuildEvents.Clear();
 
-            if (Needs(SplitName.Build, SplitName.SecondBase))
+            if (Needs(SplitName.Build))
             {
                 EnsureBuilderTargets();
                 UpdateBuilderConstruction();
@@ -1177,6 +1198,7 @@ private void UpdateSecondBaseArming()
                 return;
 
             var inProgressCrafts = new HashSet<ActiveCraftKey>();
+            IntPtr currentCrafter = IntPtr.Zero;
             try
             {
                 int craftingComponentOffset = GetUnrealFieldOffset("SN2PlayerCharacter", SN2PlayerCharacter_CraftingComponent, "CraftingComponent");
@@ -1185,9 +1207,9 @@ private void UpdateSecondBaseArming()
                     return;
 
                 int currentCrafterOffset = GetUnrealFieldOffset("UWECraftingComponent", UWECraftingComponent_CurrentCrafterComponent, "CurrentCrafterComponent");
-                IntPtr crafter = game.Read<IntPtr>(craftingComponent + currentCrafterOffset);
-                if (crafter != IntPtr.Zero)
-                    knownCrafters.Add(crafter);
+                currentCrafter = game.Read<IntPtr>(craftingComponent + currentCrafterOffset);
+                if (currentCrafter != IntPtr.Zero)
+                    knownCrafters.Add(currentCrafter);
 
                 // CurrentCrafterComponent may clear when the player releases
                 // the Habitat Builder. Keep reading crafters already seen so
@@ -1212,6 +1234,9 @@ private void UpdateSecondBaseArming()
                 logger.Log($"Craft read failed: {ex.Message}");
                 return;
             }
+
+            var activeCrafterPointers = new HashSet<IntPtr>(inProgressCrafts.Select(craft => craft.Crafter));
+            knownCrafters.RemoveWhere(crafter => crafter != currentCrafter && !activeCrafterPointers.Contains(crafter));
 
             if (!craftBaselineInitialized)
             {
@@ -1310,7 +1335,7 @@ private void UpdateSecondBaseArming()
 
         private void EnsureBuilderTargets()
         {
-            if (builderTool != IntPtr.Zero || playerToolbarComponent == null || unrealHelper == null)
+            if (playerToolbarComponent == null || unrealHelper == null)
                 return;
 
             try
@@ -1326,6 +1351,8 @@ private void UpdateSecondBaseArming()
                 if (!IsPlausibleArray(data, count, capacity, 64))
                     return;
 
+                IntPtr currentBuilder = IntPtr.Zero;
+                string currentBuilderClass = string.Empty;
                 for (int index = 0; index < count; index++)
                 {
                     IntPtr actor = game.Read<IntPtr>(data + index * FUWEToolbarItem_Stride + FUWEToolbarItem_Actor);
@@ -1338,9 +1365,30 @@ private void UpdateSecondBaseArming()
                     if (!isBuilder || className.IndexOf("Ghost", StringComparison.OrdinalIgnoreCase) >= 0)
                         continue;
 
-                    builderTool = actor;
-                    logger.Log($"Build tracking ready from player toolbar: tool={builderTool.ToString("X")} class={className}");
+                    currentBuilder = actor;
+                    currentBuilderClass = className;
+                    break;
+                }
+
+                if (currentBuilder == builderTool)
                     return;
+
+                IntPtr previousBuilder = builderTool;
+                ResetBuilderConstructionState();
+                ResetReplicatedBuilderState();
+                builderCompletedLocalComponent = IntPtr.Zero;
+                builderCompletedReplicatedComponent = IntPtr.Zero;
+                builderTool = currentBuilder;
+
+                if (currentBuilder != IntPtr.Zero)
+                {
+                    logger.Log(
+                        $"Build tracking {(previousBuilder == IntPtr.Zero ? "ready" : "refreshed")} from player toolbar: " +
+                        $"tool={currentBuilder.ToString("X")} class={currentBuilderClass}");
+                }
+                else if (previousBuilder != IntPtr.Zero)
+                {
+                    logger.Log("Build tracking invalidated: previous Builder actor is no longer in the player toolbar");
                 }
             }
             catch
@@ -1446,7 +1494,6 @@ private void UpdateSecondBaseArming()
             {
                 int ghostOffset = GetUnrealFieldOffset("SN2BuilderTool", ASN2BuilderTool_Ghost, "Ghost");
                 IntPtr ghost = unrealHelper.ResolveWeakObject(builderTool + ghostOffset);
-                ResolveBuilderTransientTargets(ghost);
                 IntPtr component = FindBuilderConstructableComponent(ghost);
 
                 if (component != IntPtr.Zero && component != builderConstructionComponent)
@@ -1457,16 +1504,19 @@ private void UpdateSecondBaseArming()
                     {
                         builderCompletedLocalComponent = IntPtr.Zero;
                         CaptureBuilderConstructionIdentity(component, ghost, false);
+                        nextBuilderIdentityRetry = DateTime.UtcNow.Add(BuilderIdentityRetryInterval);
                     }
                 }
                 else if (component != IntPtr.Zero
                     && component != builderCompletedLocalComponent
-                    && pendingBuilderBuildable == Buildable.None)
+                    && pendingBuilderBuildable == Buildable.None
+                    && DateTime.UtcNow >= nextBuilderIdentityRetry)
                 {
                     // Structural base ghosts can receive their serialized BrushType late in
                     // the construction. Re-read unresolved identity before checking the
                     // authoritative replicated completion on this frame.
                     CaptureBuilderConstructionIdentity(component, ghost, false);
+                    nextBuilderIdentityRetry = DateTime.UtcNow.Add(BuilderIdentityRetryInterval);
                 }
 
                 UpdateReplicatedBuilderCompletion();
@@ -1485,7 +1535,12 @@ private void UpdateSecondBaseArming()
                 // The authoritative completion can arrive before structural
                 // ghost serialization finishes. Re-read the exact constructed
                 // class/ghost identity during the short completion window.
-                CaptureReplicatedBuilderIdentity(builderReplicatedComponent, builderReplicatedGhost);
+                if (pendingBuilderBuildable == Buildable.None
+                    && DateTime.UtcNow >= nextBuilderIdentityRetry)
+                {
+                    CaptureReplicatedBuilderIdentity(builderReplicatedComponent, builderReplicatedGhost);
+                    nextBuilderIdentityRetry = DateTime.UtcNow.Add(BuilderIdentityRetryInterval);
+                }
                 if (pendingBuilderBuildable != Buildable.None
                     || DateTime.UtcNow - builderReplicatedCompletedAt >= TimeSpan.FromSeconds(1))
                 {
@@ -1516,6 +1571,7 @@ private void UpdateSecondBaseArming()
                     builderReplicatedSawIncrease = false;
                     builderReplicatedCompletedAt = DateTime.MinValue;
                     CaptureReplicatedBuilderIdentity(replicatedComponent, currentTarget);
+                    nextBuilderIdentityRetry = DateTime.UtcNow.Add(BuilderIdentityRetryInterval);
                     logger.Log(
                         $"Builder replicated construction tracked: mapped={pendingBuilderBuildable} " +
                         $"ghost={currentTarget.ToString("X")} component={replicatedComponent.ToString("X")}");
@@ -1737,27 +1793,49 @@ private void UpdateSecondBaseArming()
                 || binaryCount > binaryCapacity || binaryCount > 65536)
                 return false;
 
-            byte[] bytes = game.Read(binaryData, binaryCount);
-            string text = new string(bytes
-                .Select(value => value >= 32 && value <= 126 ? (char)value : '.')
-                .ToArray());
             const string marker = "SculpturalBase.BrushType.";
-            int markerIndex = text.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            byte[] bytes = game.Read(binaryData, binaryCount);
+            int markerIndex = IndexOfAscii(bytes, marker);
             if (markerIndex < 0)
                 return false;
 
             int valueStart = markerIndex + marker.Length;
             int valueEnd = valueStart;
-            while (valueEnd < text.Length
-                && (char.IsLetterOrDigit(text[valueEnd]) || text[valueEnd] == '_'))
+            while (valueEnd < bytes.Length
+                && (bytes[valueEnd] >= (byte)'A' && bytes[valueEnd] <= (byte)'Z'
+                    || bytes[valueEnd] >= (byte)'a' && bytes[valueEnd] <= (byte)'z'
+                    || bytes[valueEnd] >= (byte)'0' && bytes[valueEnd] <= (byte)'9'
+                    || bytes[valueEnd] == (byte)'_'))
                 valueEnd++;
-            string brushType = text.Substring(valueStart, valueEnd - valueStart);
+            var brushTypeCharacters = new char[valueEnd - valueStart];
+            for (int index = valueStart; index < valueEnd; index++)
+                brushTypeCharacters[index - valueStart] = (char)bytes[index];
+            string brushType = new string(brushTypeCharacters);
             if (!TryMapBuildable(brushType, brushType, out buildable))
                 return false;
 
             sourceName = brushType;
             sourcePath = marker + brushType;
             return true;
+        }
+
+        private static int IndexOfAscii(byte[] data, string value)
+        {
+            if (data == null || string.IsNullOrEmpty(value) || data.Length < value.Length)
+                return -1;
+
+            for (int index = 0; index <= data.Length - value.Length; index++)
+            {
+                int valueIndex = 0;
+                while (valueIndex < value.Length
+                    && data[index + valueIndex] == (byte)value[valueIndex])
+                    valueIndex++;
+
+                if (valueIndex == value.Length)
+                    return index;
+            }
+
+            return -1;
         }
 
         private string ReadSoftObjectAssetPath(IntPtr softObjectAddress)
@@ -1835,19 +1913,6 @@ private void UpdateSecondBaseArming()
                 : IntPtr.Zero;
         }
 
-        private void ResolveBuilderTransientTargets(IntPtr ghost)
-        {
-            if (ghost != IntPtr.Zero && ghost != builderLastDiscoveryGhost)
-            {
-                builderLastDiscoveryGhost = ghost;
-            }
-            else if (ghost == IntPtr.Zero)
-            {
-                builderLastDiscoveryGhost = IntPtr.Zero;
-            }
-
-        }
-
         private IntPtr ResolveBuilderConstructedClass(IntPtr component)
         {
             int parametersOffset = GetUnrealFieldOffset(
@@ -1866,6 +1931,8 @@ private void UpdateSecondBaseArming()
             if (pendingBuilderBuildable != Buildable.None)
             {
                 currentBuildEvents.Add(pendingBuilderBuildable);
+                if (pendingBuilderBuildable == Buildable.Processor)
+                    RequestCraftingTargetRefresh();
                 logger.Log(
                     $"Build completed: {pendingBuilderBuildable} source={pendingBuilderSource.ToString("X")} " +
                     $"signal={signal}");
@@ -1888,6 +1955,7 @@ private void UpdateSecondBaseArming()
             builderConstructionComponent = IntPtr.Zero;
             pendingBuilderBuildable = Buildable.None;
             pendingBuilderSource = IntPtr.Zero;
+            nextBuilderIdentityRetry = DateTime.MinValue;
         }
 
         private void PreserveActiveCrafterState(IntPtr crafter, HashSet<ActiveCraftKey> crafts)
@@ -2294,6 +2362,11 @@ private void UpdateSecondBaseArming()
 
         private void UpdateBiome()
         {
+            DateTime now = DateTime.UtcNow;
+            if (now < nextBiomeUpdate)
+                return;
+            nextBiomeUpdate = now.Add(BiomeUpdateInterval);
+
             if (EnableBiomeDiscoveryLogs)
                 UpdateBiomeDiscoveryLogs();
 
@@ -2354,23 +2427,6 @@ private void UpdateSecondBaseArming()
                 biomeBaselineInitialized = false;
                 nextBiomeProbeAttempt = DateTime.Now.AddSeconds(2);
             }
-        }
-
-        private bool ShouldHoldLastKnownBiome(BiomeReadResult readResult)
-        {
-            if (CurrentBiome == Biome.None || readResult.Biome != Biome.None)
-                return false;
-
-            if (readResult.Source.StartsWith("WorldZone", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            string key = NormalizeEnumCandidate(readResult.Key);
-            if (string.IsNullOrEmpty(key) || key.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            return key.StartsWith("Movement_", StringComparison.OrdinalIgnoreCase)
-                || key.StartsWith("Volume_", StringComparison.OrdinalIgnoreCase)
-                || key.StartsWith("EnvironmentType_", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool TryReadBiomeFromWorldZones(out BiomeReadResult readResult)
@@ -3647,7 +3703,7 @@ private void UpdateSecondBaseArming()
             processorStations.Clear();
             processorStates.Clear();
             builderTool = IntPtr.Zero;
-            builderLastDiscoveryGhost = IntPtr.Zero;
+            nextBuilderIdentityRetry = DateTime.MinValue;
             playerVolumeTracker = IntPtr.Zero;
             worldZoneTracker = IntPtr.Zero;
             worldZoneTrackerRefreshTask = null;
@@ -3658,6 +3714,7 @@ private void UpdateSecondBaseArming()
             currentBiomeKey = string.Empty;
             currentBiomeKeyOld = string.Empty;
             nextBiomeProbeAttempt = DateTime.MinValue;
+            nextBiomeUpdate = DateTime.MinValue;
             ResetReplicatedBuilderState();
             ResetBuilderConstructionState();
             activeCrafts.Clear();
@@ -5292,7 +5349,24 @@ private void UpdateSecondBaseArming()
                 return;
 
             nextStoryGoalUpdateAttempt = DateTime.UtcNow.AddMilliseconds(250);
-            DatabankStoryGoalState state = ReadPlayerStoryGoals();
+            if (!TryGetPlayerStoryGoalContainer(out IntPtr storyGoalContainer)
+                || !TryReadCollectionCount(storyGoalContainer + UWEStoryGoalContainer_CachedStoryGoals, 4096, out int pointerCount)
+                || !TryReadCollectionCount(storyGoalContainer + UWEStoryGoalContainer_StoryGoalsEntries, 4096, out int entryCount)
+                || !TryReadCollectionCount(storyGoalContainer + UWEStoryGoalContainer_UnlockRecords, 512, out int unlockCount))
+                return;
+
+            if (storyGoalBaselineInitialized
+                && storyGoalContainer == cachedStoryGoalContainer
+                && pointerCount == cachedStoryGoalPointerCount
+                && entryCount == cachedStoryGoalEntryCount
+                && unlockCount == cachedStoryGoalUnlockCount)
+            {
+                previousStoryGoals = currentStoryGoals;
+                return;
+            }
+
+            var state = new DatabankStoryGoalState();
+            AddStoryGoalsFromContainer(storyGoalContainer, state);
             if (state.Count == 0)
                 return;
 
@@ -5300,6 +5374,11 @@ private void UpdateSecondBaseArming()
             foreach (string name in state.Names)
                 if (TryParseNamedEnum(name, out StoryGoal goal) && goal != StoryGoal.None && goal != StoryGoal.Any)
                     readGoals.Add(goal);
+
+            cachedStoryGoalContainer = storyGoalContainer;
+            cachedStoryGoalPointerCount = pointerCount;
+            cachedStoryGoalEntryCount = entryCount;
+            cachedStoryGoalUnlockCount = unlockCount;
 
             if (!storyGoalBaselineInitialized)
             {
@@ -5319,26 +5398,56 @@ private void UpdateSecondBaseArming()
         private DatabankStoryGoalState ReadPlayerStoryGoals()
         {
             var result = new DatabankStoryGoalState();
+            if (TryGetPlayerStoryGoalContainer(out IntPtr storyGoalContainer))
+                AddStoryGoalsFromContainer(storyGoalContainer, result);
+            return result;
+        }
+
+        private bool TryGetPlayerStoryGoalContainer(out IntPtr storyGoalContainer)
+        {
+            storyGoalContainer = IntPtr.Zero;
             try
             {
                 if (!TryGetUnrealFieldOffset("Pawn", out int playerStateOffset, "PlayerState"))
-                    return result;
+                    return false;
 
                 IntPtr playerState = game.Read<IntPtr>(currentPlayerCharacterAddress + playerStateOffset);
                 if (playerState == IntPtr.Zero)
-                    return result;
+                    return false;
 
                 int containerOffset = GetUnrealFieldOffset(
                     "SN2PlayerState",
                     SN2PlayerState_StoryGoalContainerComponent,
                     "StoryGoalContainerComponent",
                     "StoryGoalContainer");
-                AddStoryGoalsFromContainer(game.Read<IntPtr>(playerState + containerOffset), result);
+                storyGoalContainer = game.Read<IntPtr>(playerState + containerOffset);
+                return storyGoalContainer != IntPtr.Zero;
             }
             catch
             {
+                storyGoalContainer = IntPtr.Zero;
+                return false;
             }
-            return result;
+        }
+
+        private bool TryReadCollectionCount(IntPtr collectionAddress, int maxElements, out int count)
+        {
+            count = 0;
+            try
+            {
+                IntPtr data = game.Read<IntPtr>(collectionAddress);
+                int num = game.Read<int>(collectionAddress + game.PointerSize);
+                int max = game.Read<int>(collectionAddress + game.PointerSize + 4);
+                if (!IsPlausibleArray(data, num, max, maxElements))
+                    return false;
+
+                count = num;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private bool HasStoryGoal(StoryGoal goal) =>

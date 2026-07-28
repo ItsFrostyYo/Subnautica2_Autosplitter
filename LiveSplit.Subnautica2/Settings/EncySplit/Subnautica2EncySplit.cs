@@ -23,9 +23,7 @@ namespace LiveSplit.Subnautica2
 
             _split = encySplit ?? new EncySplit(EncyEntry.None, onlySplitOnce: true, isSubCondition: false);
 
-            cboEncy.DropDownStyle = ComboBoxStyle.DropDown;
-            cboEncy.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            cboEncy.AutoCompleteSource = AutoCompleteSource.ListItems;
+            ConfigureSearchableCombo(cboEncy);
             cboEncy.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboEncy.DisplayMember = "Display";
             cboEncy.ValueMember = "Value";
@@ -46,7 +44,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboEncy))
                 return;
 
             UpdateEntryFromCombo();
@@ -54,7 +52,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_TextChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboEncy))
                 return;
 
             UpdateEntryFromCombo();

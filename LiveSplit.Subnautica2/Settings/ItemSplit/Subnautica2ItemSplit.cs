@@ -24,7 +24,7 @@ namespace LiveSplit.Subnautica2
 
             _split = split ?? new ItemSplit(InventoryItem.None, onlySplitOnce: true, isSubCondition: false);
 
-            cboItem.DropDownStyle = ComboBoxStyle.DropDownList;
+            ConfigureSearchableCombo(cboItem);
             cboItem.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboItem.DisplayMember = "Display";
             cboItem.ValueMember = "Value";
@@ -47,7 +47,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboItem))
                 return;
 
             if (cboItem.SelectedValue is InventoryItem t)

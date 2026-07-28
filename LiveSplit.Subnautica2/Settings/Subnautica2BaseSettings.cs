@@ -102,7 +102,13 @@ namespace LiveSplit.Subnautica2
                 setting.ComboBox2.Enabled = false;
         }
 
-        public virtual void ControlChanged(object sender, EventArgs e) => UpdateSplits();
+        public virtual void ControlChanged(object sender, EventArgs e)
+        {
+            if (sender is ComboBox combo && Subnautica2SplitSetting.IsComboSearchUpdating(combo))
+                return;
+
+            UpdateSplits();
+        }
 
         public virtual void UpdateSplits()
         {
@@ -136,6 +142,7 @@ namespace LiveSplit.Subnautica2
                 SplitName.IntroLifepodAscend,
                 SplitName.IntroUnlockDoor,
                 SplitName.RepairTurbine,
+                SplitName.BuildProcessor,
                 SplitName.EnterTadpole,
                 SplitName.SecondBase,
                 SplitName.EnterTadpoleAfterSecondBase,
@@ -247,17 +254,18 @@ namespace LiveSplit.Subnautica2
         {
             var setting = new T();           
             var combo = getCombo(setting);
-            combo.DropDownStyle = ComboBoxStyle.DropDownList;
-            if (setting is Subnautica2EncySplit)
-                combo.DropDownStyle = ComboBoxStyle.DropDown;
+            Subnautica2SplitSetting.ConfigureSearchableCombo(combo);
             combo.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
 
+            combo.BindingContext = new BindingContext();
             combo.DisplayMember = "Display";
             combo.ValueMember = "Value";
             combo.DataSource = data.ToList();
 
             if (combo.Items.Count > 0)
                 combo.SelectedIndex = 0;
+
+            Subnautica2SplitSetting.RefreshComboSearchIndex(combo);
 
             setting.IsSubCondition = isSubCondition;            
             setting.Split.IsSubCondition = isSubCondition;            
@@ -309,6 +317,7 @@ namespace LiveSplit.Subnautica2
                 combo.ValueMember = "Value";
                 combo.DataSource = new List<ComboItem<T>>(list);
                 if (previousSelected is T t) combo.SelectedValue = t;
+                Subnautica2SplitSetting.RefreshComboSearchIndex(combo);
             }
             finally
             {

@@ -23,7 +23,7 @@ namespace LiveSplit.Subnautica2
 
             _split = craftSplit ?? new CraftSplit(Craftable.None, onlySplitOnce: true, isSubCondition: false);
 
-            cboCraftables.DropDownStyle = ComboBoxStyle.DropDownList;
+            ConfigureSearchableCombo(cboCraftables);
             cboCraftables.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboCraftables.DisplayMember = "Display";
             cboCraftables.ValueMember = "Value";
@@ -43,7 +43,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboCraftables))
                 return;
 
             if (cboCraftables.SelectedValue is Craftable craftable)

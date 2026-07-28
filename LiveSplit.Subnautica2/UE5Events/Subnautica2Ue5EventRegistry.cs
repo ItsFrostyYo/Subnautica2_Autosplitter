@@ -95,6 +95,8 @@ namespace LiveSplit.Subnautica2.UE5Events
             Add("EnterTadpole", "BP_Tadpole_C", null, "OnPilotEntered_BP");
             Add("SonicResonatorBlastShot", "GA_SonicResonator_Blast_C", null, "OnCompleted_B65B54F241049DF1F76DA59AAF9E5B09");
             Add("RepairTurbine", "BP_PowerPlant_FixedTurbineBlade_C", null, "OnUnlocked_8DED1B5341E414D6BCD2C6B91609A9C5");
+            Add("BuildHatch", "BP_BaseHatch_C", "BP_BaseHatch_C", "BndEvt__BP_BaseHatch_UWEAttachable_K2Node_ComponentBoundEvent_0_OnAttached__DelegateSignature");
+            Add("BuildProcessor", "BP_ProcessorStation_C", "BP_ProcessorStation_C", "OnAttached");
             // End
             Add("FinalObservatoryButtonPress", "BP_Hologram_AxumFinale_Button_C", null, "ToggledOn");
 

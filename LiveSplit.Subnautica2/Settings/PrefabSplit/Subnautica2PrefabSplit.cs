@@ -28,7 +28,7 @@ namespace LiveSplit.Subnautica2
 
             _split = prefabSplit ?? new PrefabSplit(SplitName.None, onlySplitOnce: true, isSubCondition: false);
 
-            cboName.DropDownStyle = ComboBoxStyle.DropDownList;
+            ConfigureSearchableCombo(cboName);
             cboName.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboName.DisplayMember = "Display";
             cboName.ValueMember = "Value";
@@ -48,11 +48,9 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboName) || !(cboName.SelectedValue is SplitName split))
                 return;
 
-            string splitDescription = cboName.SelectedValue.ToString();
-            SplitName split = GetSplitName(splitDescription);
             _split.SplitName = split;
 
             MemberInfo info = typeof(SplitName).GetMember(split.ToString())[0];

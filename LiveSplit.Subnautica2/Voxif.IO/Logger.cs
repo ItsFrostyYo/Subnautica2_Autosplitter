@@ -100,8 +100,8 @@ namespace Voxif.IO {
     }
 
     public class FileLogger : Logger {
-        private const int LinesMax = 5000;
-        private const int LinesErase = 500;
+        private const int LinesMax = 20000;
+        private const int LinesErase = 5000;
 
         private readonly string filePath;
 
@@ -109,100 +109,141 @@ namespace Voxif.IO {
         private readonly Queue<string> linesQueue = new Queue<string>();
         private readonly CancellationTokenSource tokenSource = new CancellationTokenSource();
         private readonly ManualResetEvent manualEvent = new ManualResetEvent(false);
+        private Thread loggingThread;
+        private volatile bool acceptingMessages;
 
         public FileLogger(string filePath) {
             this.filePath = filePath;
         }
 
         public override void StartLogger() {
-            new Thread(() => {
+            if(loggingThread != null) {
+                return;
+            }
+
+            acceptingMessages = true;
+            loggingThread = new Thread(() => {
                 lineNumber = 0;
                 if(!File.Exists(filePath)) {
-                    File.Create(filePath);
+                    using(File.Create(filePath)) { }
                 } else {
                     using(FileStream stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
                         using(StreamReader reader = new StreamReader(stream)) {
-                            while(!tokenSource.IsCancellationRequested && reader.ReadLine() != null) {
+                            while(reader.ReadLine() != null) {
                                 lineNumber++;
                             }
                         }
                     }
                 }
 
-                if(tokenSource.IsCancellationRequested) {
-                    return;
-                }
+                StreamWriter writer = OpenWriter();
+                try {
+                    while(true) {
+                        manualEvent.WaitOne();
 
-                string line = null;
-                while(true) {
-                    manualEvent.WaitOne();
-                    if(tokenSource.IsCancellationRequested) {
-                        return;
-                    }
-                    lock(linesQueue) {
-                        if(linesQueue.Count != 0) {
-                            line = linesQueue.Dequeue();
-                        } else {
-                            manualEvent.Reset();
-                            continue;
+                        while(true) {
+                            string line;
+                            lock(linesQueue) {
+                                if(linesQueue.Count == 0) {
+                                    manualEvent.Reset();
+                                    break;
+                                }
+                                line = linesQueue.Dequeue();
+                            }
+
+                            if(lineNumber >= LinesMax) {
+                                writer.Flush();
+                                writer.Dispose();
+                                CompactLog();
+                                writer = OpenWriter();
+                            }
+
+                            writer.WriteLine(line);
+                            lineNumber++;
+                        }
+
+                        writer.Flush();
+                        if(tokenSource.IsCancellationRequested) {
+                            lock(linesQueue) {
+                                if(linesQueue.Count == 0) {
+                                    return;
+                                }
+                            }
                         }
                     }
-                    WriteLine(line);
-                    line = null;
+                } finally {
+                    writer?.Dispose();
                 }
-            }).Start();
+            }) {
+                IsBackground = true,
+                Name = "LiveSplit.Subnautica2 File Logger"
+            };
+            loggingThread.Start();
         }
 
         public override void StopLogger() {
+            acceptingMessages = false;
             tokenSource.Cancel();
             manualEvent.Set();
+            loggingThread?.Join(2000);
+            loggingThread = null;
         }
 
         public override void Log(object value) {
+            if(!acceptingMessages || value == null) {
+                return;
+            }
+
             lock(linesQueue) {
                 linesQueue.Enqueue(DateTime.Now.ToString("HH:mm:ss.fff") + " " + value.ToString());
                 manualEvent.Set();
             }
         }
 
-        protected void WriteLine(string msg) {
-            if(lineNumber >= LinesMax) {
-                string tempLog = filePath + "-temp";
-                int linesSkipped = this.lineNumber - LinesMax + LinesErase;
-                int lineNumber = 1;
-                using(StreamReader reader = File.OpenText(filePath)) {
-                    using(StreamWriter writer = File.CreateText(tempLog)) {
+        private StreamWriter OpenWriter() {
+            return new StreamWriter(new FileStream(
+                filePath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.ReadWrite));
+        }
+
+        private void CompactLog() {
+            string tempLog = filePath + "-temp";
+            int linesToKeep = LinesMax - LinesErase;
+            var retained = new Queue<string>(linesToKeep);
+
+            try {
+                using(FileStream stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+                    using(StreamReader reader = new StreamReader(stream)) {
                         string line;
                         while((line = reader.ReadLine()) != null) {
-                            if(lineNumber <= linesSkipped) {
-                                lineNumber++;
-                            } else {
-                                writer.WriteLine(line);
+                            if(retained.Count == linesToKeep) {
+                                retained.Dequeue();
                             }
+                            retained.Enqueue(line);
                         }
                     }
                 }
-                try {
-                    File.Copy(tempLog, filePath, true);
-                    this.lineNumber = LinesMax - LinesErase;
-                } catch {
-                    Trace.TraceError("Failed replacing log file");
-                } finally {
-                    try {
-                        File.Delete(tempLog);
-                    } catch {
-                        Trace.TraceError("Failed deleting temp log file");
+
+                using(StreamWriter writer = File.CreateText(tempLog)) {
+                    foreach(string line in retained) {
+                        writer.WriteLine(line);
                     }
                 }
-            }
 
-            try {
-                using(StreamWriter writer = new StreamWriter(filePath, true)) {
-                    writer.WriteLine(msg);
-                    ++lineNumber;
-                }
+                File.Copy(tempLog, filePath, true);
+                lineNumber = retained.Count;
             } catch(Exception e) {
                 Trace.TraceError(e.ToString());
+            } finally {
+                try {
+                    if(File.Exists(tempLog)) {
+                        File.Delete(tempLog);
+                    }
+                } catch(Exception e) {
+                    Trace.TraceError(e.ToString());
+                }
             }
         }
     }

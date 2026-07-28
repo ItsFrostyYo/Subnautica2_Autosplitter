@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <updates>
+    <update version="1.2.0.2">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Slight Optimization to Reduce Lag</change>
+            <change>Slight Fix to Build Splits</change>
+            <change>Added Build Processor Prefabricated Split that used Specific Attatched Event that is Consistent</change>
+        </changelog>
+    </update>  
+     <update version="1.1.4.3">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Updated Settings to make Lists Searchable</change>
+        </changelog>
+    </update>  
      <update version="1.1.3.0">
         <files>
             <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>

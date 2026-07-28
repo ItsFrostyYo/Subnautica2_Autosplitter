@@ -23,6 +23,10 @@ namespace LiveSplit.Subnautica2
 
             _split = biomeSplit ?? new BiomeSplit((Biome.None, Biome.None), onlySplitOnce: true, isSubCondition: false);
 
+            ConfigureSearchableCombo(cboBiome1);
+            ConfigureSearchableCombo(cboBiome2);
+            pictureBox1.Visible = false;
+
             if (_split.IsSubCondition)
             {
                 ComboBox2.Visible = false;
@@ -57,7 +61,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboBiome_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboBiome1) || IsComboSearchUpdating(cboBiome2))
                 return;
 
             if (cboBiome1.SelectedValue is Biome biome1 && cboBiome2.SelectedValue is Biome biome2)

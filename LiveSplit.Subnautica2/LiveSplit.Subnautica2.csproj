@@ -56,22 +56,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Localization.cs" />
-    <Compile Include="ManualComponents\FontTextComponent.cs" />
-    <Compile Include="ManualComponents\ManualDoubleTimer.cs" />
-    <Compile Include="ManualComponents\ManualDoubleTimerSettings.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ManualComponents\ManualDoubleTimerSettings.Designer.cs" />
-    <Compile Include="ManualComponents\ManualTextComponent.cs" />
-    <Compile Include="ManualComponents\ManualTextSettings.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ManualComponents\ManualTextSettings.Designer.cs" />
-    <Compile Include="ManualComponents\ManualTimer.cs" />
-    <Compile Include="ManualComponents\ManualTimerSettings.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ManualComponents\ManualTimerSettings.Designer.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -202,8 +186,6 @@
     <Compile Include="Voxif.Helpers\Voxif.Helpers.UnrealHelper\UnrealNestedPointer.cs" />
     <Compile Include="Voxif.Helpers\Voxif.Helpers.MemoryHelper\MemoryHelper.cs" />
     <Compile Include="Voxif.Helpers\Voxif.Helpers.StructReflector\StructReflector.cs" />
-    <Compile Include="Voxif.Helpers\Voxif.Helpers.Unity\MonoNestedPointer.cs" />
-    <Compile Include="Voxif.Helpers\Voxif.Helpers.Unity\UnityHelper.cs" />
     <Compile Include="Voxif.IO\Logger.cs" />
     <Compile Include="Voxif.Memory\NestedPointer.cs" />
     <Compile Include="Voxif.Memory\ProcessMethods.cs" />
@@ -275,11 +257,6 @@
     <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.UnrealHelper\Unreal4_23.txt" />
     <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.UnrealHelper\Unreal4_25.txt" />
     <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.UnrealHelper\Unreal5_0.txt" />
-    <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.Unity\Il2cpp_2019.txt" />
-    <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.Unity\Il2cpp_Base.txt" />
-    <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.Unity\Mono_v1.txt" />
-    <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.Unity\Mono_v1_cattrs.txt" />
-    <EmbeddedResource Include="Voxif.Helpers\Voxif.Helpers.Unity\Mono_v2.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="CustomFontDialog, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">

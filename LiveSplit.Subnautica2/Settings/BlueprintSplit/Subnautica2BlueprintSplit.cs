@@ -23,7 +23,7 @@ namespace LiveSplit.Subnautica2
 
             _split = blueprintSplit ?? new BlueprintSplit(Unlockable.None, onlySplitOnce: true, isSubCondition: false);
 
-            cboBlueprint.DropDownStyle = ComboBoxStyle.DropDownList;
+            ConfigureSearchableCombo(cboBlueprint);
             cboBlueprint.MouseWheel += (o, e) => ((HandledMouseEventArgs)e).Handled = true;
             cboBlueprint.DisplayMember = "Display";
             cboBlueprint.ValueMember = "Value";
@@ -43,7 +43,7 @@ namespace LiveSplit.Subnautica2
 
         private void cboName_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (IsLoading)
+            if (IsLoading || IsComboSearchUpdating(cboBlueprint))
                 return;
 
             if (cboBlueprint.SelectedValue is Unlockable u)
