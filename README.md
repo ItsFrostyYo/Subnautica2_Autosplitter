@@ -43,10 +43,10 @@ Available split types include:
 
 - `Prefabricated` - Split on Specific Set Prefabricated Splits Generalized for Specific Categories.
 - `Craft` - Split on Crafting something from a Fabricator, Vehicle Fabricator, Modification Station, and Processor Station.
-- `Build` - Split on Builder Tool Constructables Completions.
+- `Build` - Split on Builder Tool Constructables beinng Completed.
 - `Inventory` - Split on Item Pickups, Drops, or Condition Splits to Specify Inventory Count.
-- `Blueprint` - Splits on Newly Unlocked or Previously Acquired Blueprints/Recipes.
-- `Encyclopedia` - Splits on Newly Unlocked or Previously Acquired Databank Entries from the Encyclopedia.
+- `Blueprint` - Split on Newly Unlocked or Previously Acquired Blueprints/Recipes.
+- `Encyclopedia` - Split on Newly Unlocked or Previously Acquired Databank Entries from the Encyclopedia.
 - `Story Goal` - Split on Game Specific Story Goal Events that Trigger Throughout Gameplay.
 - `Biome` - Split on Biome Transitions or Condition Splits to Specific Biomes
 
