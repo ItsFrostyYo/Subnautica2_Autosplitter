@@ -99,6 +99,7 @@ namespace LiveSplit.Subnautica2
         private bool secondBaseArmed;
         private bool enterTadpoleAfterSecondBaseArmed;
         private int deepStartCinematicRemovalCount;
+        private bool survivalStartStoryGoalArmed;
         private bool loadRemovalActive;
         private bool playerDiscoveryAllowed = true;
 
@@ -509,6 +510,7 @@ namespace LiveSplit.Subnautica2
                     secondBaseArmed = false;
                     enterTadpoleAfterSecondBaseArmed = false;
                     deepStartCinematicRemovalCount = 0;
+                    survivalStartStoryGoalArmed = false;
                     loadRemovalActive = false;
                     inventoryStorageObjects.Clear();
                     inventoryStorageRefreshTask = null;
@@ -710,6 +712,14 @@ namespace LiveSplit.Subnautica2
             }
 
             AttachPlayerFromLocalPlayer();
+
+            // Survival Start uses a Story Goal as its arming condition, so keep
+            // this reader active independently of the configured split list.
+            // Poll before the UE5 event state so the first cinematic removal
+            // after the goal can start LiveSplit on the same update.
+            if (settings != null && settings.IntroStart && !startedTimerBefore)
+                UpdateStoryGoals();
+
             UpdateEventState();
 
             // Return the start signal to LiveSplit on the same update. Even
@@ -734,6 +744,7 @@ namespace LiveSplit.Subnautica2
             {
                 startedTimerBefore = false;
                 deepStartCinematicRemovalCount = 0;
+                survivalStartStoryGoalArmed = false;
                 loadRemovalActive = false;
                 playerDiscoveryAllowed = false;
                 gameplayInitializationPending = false;
@@ -758,15 +769,28 @@ namespace LiveSplit.Subnautica2
                 logger.Log("Intro load removal ended");
             }
 
+            if (!survivalStartStoryGoalArmed
+                && HasStoryGoal(StoryGoal.Storygoal_Player_Ch1_FirstPrint3))
+            {
+                survivalStartStoryGoalArmed = true;
+                logger.Log(
+                    "Survival start armed by Storygoal_Player_Ch1_FirstPrint3; " +
+                    "waiting for the next Deep Start cinematic tag removal");
+            }
+
             bool deepStartCinematicRemoved = Ue5EventTriggered("DeepStartCinematicTagRemoved");
             if (deepStartCinematicRemoved)
             {
                 deepStartCinematicRemovalCount++;
                 logger.Log($"Deep Start cinematic tag removed (count={deepStartCinematicRemovalCount})");
-                if (deepStartCinematicRemovalCount >= 2 && !survivalStartThisUpdate)
+
+                if (survivalStartStoryGoalArmed && !survivalStartThisUpdate)
                 {
                     survivalStartThisUpdate = true;
-                    logger.Log("Survival start: second cinematic removal returned player control");
+                    survivalStartStoryGoalArmed = false;
+                    logger.Log(
+                        "Survival start: first cinematic removal after " +
+                        "Storygoal_Player_Ch1_FirstPrint3 returned player control");
                 }
             }
 
