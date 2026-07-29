@@ -1,5 +1,4 @@
 ﻿using LiveSplit.ComponentUtil;
-using LiveSplit.Model;
 using LiveSplit.Subnautica2.Enums;
 using LiveSplit.Subnautica2.UE5Events;
 using System;
@@ -184,9 +183,6 @@ namespace LiveSplit.Subnautica2
         private List<string> encyclopediaEntryKeysOld = new List<string>();
         private readonly Dictionary<IntPtr, DatabankEntryInfo> databankEntryInfoCache = new Dictionary<IntPtr, DatabankEntryInfo>();
         private readonly object databankEntryInfoCacheLock = new object();
-        private readonly List<IntPtr> databankEntryAssets = new List<IntPtr>();
-        private readonly object databankEntryAssetCacheLock = new object();
-        private DateTime nextDatabankEntryAssetRefresh = DateTime.MinValue;
         private readonly Dictionary<string, int> unrealFieldOffsetCache = new Dictionary<string, int>(StringComparer.Ordinal);
         private int activeCraftStride;
         private string lastEncyclopediaReadState = string.Empty;
@@ -195,7 +191,6 @@ namespace LiveSplit.Subnautica2
         private bool encyclopediaReadTaskResetsBaseline;
         private int encyclopediaReadGeneration;
         private int encyclopediaReadTaskGeneration;
-        private DatabankStoryGoalState encyclopediaStartStoryGoals;
 
         public Dictionary<InventoryItem, int> PlayerInventory = new Dictionary<InventoryItem, int>();
         public Dictionary<InventoryItem, int> PlayerInventoryOld = new Dictionary<InventoryItem, int>();
@@ -216,25 +211,11 @@ namespace LiveSplit.Subnautica2
         {
             public IntPtr Pointer;
             public string ClassName;
-            public CraftingTargets CraftingTargets;
-            public List<IntPtr> InventoryStorages;
-            public int InventoryId;
-            public List<IntPtr> RecipeViewModels;
 
-            public PlayerCharacterMatch(
-                IntPtr pointer,
-                string className,
-                CraftingTargets craftingTargets = null,
-                List<IntPtr> inventoryStorages = null,
-                int inventoryId = -1,
-                List<IntPtr> recipeViewModels = null)
+            public PlayerCharacterMatch(IntPtr pointer, string className)
             {
                 Pointer = pointer;
                 ClassName = className;
-                CraftingTargets = craftingTargets;
-                InventoryStorages = inventoryStorages ?? new List<IntPtr>();
-                InventoryId = inventoryId;
-                RecipeViewModels = recipeViewModels ?? new List<IntPtr>();
             }
         }
 
@@ -470,8 +451,6 @@ namespace LiveSplit.Subnautica2
         private static readonly TimeSpan BuilderIdentityRetryInterval = TimeSpan.FromMilliseconds(200);
         private const int SN2DatabankViewModel_Entries = 0x68;
         private const int SN2DatabankViewModel_Root = 0x78;
-        private const int SN2DatabankViewModel_StoryGoalContainer = 0x80;
-        private const int SN2DatabankViewModel_DatabankEntries = 0x88;
         private const int SN2DatabankViewModel_Categories = 0x98;
         private const int SN2DatabankCategoryViewModel_SubCategories = 0x78;
         private const int SN2DatabankCategoryViewModel_Entries = 0x88;
@@ -479,27 +458,17 @@ namespace LiveSplit.Subnautica2
         private const int SN2DatabankEntryViewModel_IsVisible = 0x81;
         private const int SN2DatabankEntryViewModel_IsPublished = 0x82;
         private const int WBP_TabDatabank_ViewModel = 0x518;
-        private const int WBP_DatabankCategory_ViewModel = 0x4E0;
-        private const int WBP_DatabankEntry_SN2DatabankEntryViewModel = 0x1580;
-        private const int WBP_DatabankEntryDetail_ViewModel = 0x3C8;
-        private const int WBP_DatabankEntryWrapper_EntryViewModel = 0x350;
-        private const int UWEDatabankEntry_UnlockingRequirements = 0xA0;
         private const int UWEStoryGoalContainer_UnlockRecords = 0xC8;
         private const int UWEStoryGoalContainer_StoryGoalsEntries = 0x1F8;
         private const int UWEStoryGoalContainer_CachedStoryGoals = 0x208;
-        private const int SN2GameState_StoryGoalContainerComponent = 0x438;
         private const int SN2PlayerState_StoryGoalContainerComponent = 0x410;
         private const int FStoryGoalUnlockRecord_Stride = 0x18;
         private const int FStoryGoalUnlockRecord_StoryGoal = 0x00;
         private const int FUWEStoryGoalEntry_Stride = 0x1C;
         private const int FUWEStoryGoalEntry_StoryGoal = 0x0C;
         private const int FPrimaryAssetId_PrimaryAssetName = 0x08;
-        private const int UWERequiredStoryGoalRule_RequiredStoryGoalRef = 0x30;
-        private const int UWEStoryGoalRuleComposite_Rules = 0x30;
-        private const int UWEStoryGoalRuleNegate_RuleToNegate = 0x30;
-        private const int UWEStoryGoalRuleCount_MinimumCount = 0x40;
 
-        public Subnautica2Memory(LiveSplitState state, Subnautica2Component component, Logger logger, Subnautica2Settings settings) : base(logger)
+        public Subnautica2Memory(Logger logger, Subnautica2Settings settings) : base(logger)
         {            
             OnHook += () =>
             {
@@ -624,7 +593,6 @@ namespace LiveSplit.Subnautica2
                     encyclopediaReadTaskResetsBaseline = false;
                     encyclopediaReadGeneration++;
                     encyclopediaReadTaskGeneration = encyclopediaReadGeneration;
-                    encyclopediaStartStoryGoals = null;
                     currentStoryGoals.Clear();
                     previousStoryGoals.Clear();
                     storyGoalBaselineInitialized = false;
@@ -856,7 +824,6 @@ namespace LiveSplit.Subnautica2
             playerDiscoveryAllowed = true;
             gameplayInitializationPending = true;
             gameplayInitializationReason = reason;
-            CaptureEncyclopediaStartStoryGoals();
             logger.Log($"Gameplay initialization queued after {reason}");
         }
 
@@ -870,8 +837,6 @@ namespace LiveSplit.Subnautica2
             gameplayInitializationReason = string.Empty;
             nextLocalPlayerResolveAttempt = DateTime.MinValue;
             AttachPlayerFromLocalPlayer();
-            CaptureEncyclopediaStartStoryGoals();
-
             nextInventoryProbeAttempt = DateTime.MinValue;
             nextInventoryStorageRefreshAttempt = DateTime.MinValue;
             nextCraftingTargetsRefreshAttempt = DateTime.MinValue;
@@ -881,22 +846,6 @@ namespace LiveSplit.Subnautica2
             nextEncyclopediaUpdateAttempt = DateTime.MinValue;
 
             logger.Log($"Gameplay initialization started after {reason}: player, inventory, craft, build, biome, blueprint, and encyclopedia");
-        }
-
-        private void CaptureEncyclopediaStartStoryGoals()
-        {
-            if (encyclopediaStartStoryGoals != null
-                || settings == null
-                || !Needs(SplitName.Encyclopedia)
-                || currentPlayerCharacterAddress == IntPtr.Zero)
-                return;
-
-            DatabankStoryGoalState state = ReadPlayerStoryGoals();
-            if (state.Count == 0)
-                return;
-
-            encyclopediaStartStoryGoals = state.Clone();
-            logger.Log($"Encyclopedia start state captured: storyGoals={state.Names.Count}");
         }
 
         private void AttachPlayerFromLocalPlayer()
@@ -1027,15 +976,11 @@ namespace LiveSplit.Subnautica2
             databankViewModelRefreshTask = null;
             databankViewModelsInvalidated = true;
             databankViewModelsChanged = true;
-            lock (databankEntryAssetCacheLock)
-                databankEntryAssets.Clear();
-            nextDatabankEntryAssetRefresh = DateTime.MinValue;
             lock (databankEntryInfoCacheLock)
                 databankEntryInfoCache.Clear();
             encyclopediaReadGeneration++;
             encyclopediaReadTask = null;
             encyclopediaReadTaskResetsBaseline = false;
-            encyclopediaStartStoryGoals = null;
             nextDatabankProbeAttempt = DateTime.MinValue;
             nextEncyclopediaUpdateAttempt = DateTime.MinValue;
             lastEncyclopediaReadState = string.Empty;
@@ -3511,34 +3456,6 @@ private void UpdateSecondBaseArming()
             return string.IsNullOrWhiteSpace(key) ? Biome.None.ToString() : $"{Biome.None}({key})";
         }
 
-        private void InitInventoryProbe(IUnrealHelper unrealHelper)
-        {
-            try
-            {
-                PlayerCharacterMatch playerCharacter = FindPlayerCharacter(unrealHelper);
-                if (playerCharacter.Pointer == IntPtr.Zero)
-                    throw new InvalidOperationException("player character not found");
-
-                InitializeInventoryPointers(playerCharacter);
-                UpdateInventoryStorageRefresh();
-
-                IntPtr inventoryComponent = playerInventoryComponent.New;
-                IntPtr toolbarComponent = playerToolbarComponent == null ? IntPtr.Zero : playerToolbarComponent.New;
-                int inventoryId = inventoryComponent == IntPtr.Zero ? -1 : game.Read<int>(inventoryComponent + UWEInventoryComponent_InventoryId);
-                logger.Log($"Inventory probe initialized: class={playerCharacterClassName} player={playerCharacterPointer.New.ToString("X")} inventoryComponent={inventoryComponent.ToString("X")} toolbarComponent={toolbarComponent.ToString("X")} inventoryId={inventoryId}");
-            }
-            catch (Exception ex)
-            {
-                logger.Log($"Inventory probe not initialized: {ex.Message}");
-                playerCharacterPointer = null;
-                playerInventoryComponent = null;
-                playerEquipmentComponent = null;
-                playerToolbarComponent = null;
-                playerCharacterClassName = string.Empty;
-                nextInventoryProbeAttempt = DateTime.Now.AddMilliseconds(InventoryProbeRetryMilliseconds);
-            }
-        }
-
         private void InitializeInventoryPointers(PlayerCharacterMatch playerCharacter)
         {
             string className = string.IsNullOrEmpty(playerCharacter.ClassName) ? PlayerCharacterClassNames[0] : playerCharacter.ClassName;
@@ -3556,75 +3473,6 @@ private void UpdateSecondBaseArming()
                 playerToolbarComponent = null;
                 logger.Log($"Toolbar probe not initialized: {ex.Message}");
             }
-        }
-
-        private PlayerCharacterMatch FindPlayerCharacter(IUnrealHelper helper)
-        {
-            int inventoryComponentOffset = GetUnrealFieldOffset("SN2PlayerCharacter", default, "InventoryComponent");
-            string[] classNames = PlayerCharacterClassNames
-                .Concat(WorldHudClassNames)
-                .Concat(new[]
-                {
-                    "UWEInventoryStorage",
-                    "UWECrafterComponent",
-                    "BP_ProcessorStation_C",
-                    "SN2RecipesListViewModel"
-                })
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-            IReadOnlyDictionary<string, IReadOnlyList<IntPtr>> objects =
-                helper.FindLiveUObjects(1024, classNames);
-
-            IntPtr matchedPlayer = IntPtr.Zero;
-            string matchedClassName = string.Empty;
-            foreach (string className in PlayerCharacterClassNames)
-            {
-                foreach (IntPtr playerCharacter in objects[className])
-                {
-                    if (inventoryComponentOffset == default || PlayerCharacterHasValidInventory(playerCharacter, inventoryComponentOffset))
-                    {
-                        matchedPlayer = playerCharacter;
-                        matchedClassName = className;
-                        break;
-                    }
-                }
-
-                if (matchedPlayer != IntPtr.Zero)
-                    break;
-            }
-
-            if (matchedPlayer == IntPtr.Zero)
-                return new PlayerCharacterMatch(IntPtr.Zero, string.Empty);
-
-            IntPtr inventoryComponent = game.Read<IntPtr>(matchedPlayer + inventoryComponentOffset);
-            int inventoryId = inventoryComponent == IntPtr.Zero
-                ? -1
-                : game.Read<int>(inventoryComponent + UWEInventoryComponent_InventoryId);
-            List<IntPtr> storages = inventoryId <= 0
-                ? new List<IntPtr>()
-                : objects["UWEInventoryStorage"]
-                    .Where(storage => StorageContainsInventoryId(storage, inventoryId))
-                    .Take(1)
-                    .ToList();
-
-            var recipeViewModels = new List<IntPtr>();
-            foreach (IntPtr viewModel in objects["SN2RecipesListViewModel"])
-                AddRecipeListViewModel(recipeViewModels, viewModel);
-            foreach (string worldHudClassName in WorldHudClassNames)
-                foreach (IntPtr worldHud in objects[worldHudClassName])
-                {
-                    AddRecipeListViewModel(recipeViewModels, game.Read<IntPtr>(worldHud + SN2WorldHUD_FabricatorRecipesListViewModel));
-                    AddRecipeListViewModel(recipeViewModels, game.Read<IntPtr>(worldHud + SN2WorldHUD_PDARecipesListViewModel));
-                    AddRecipeListViewModel(recipeViewModels, game.Read<IntPtr>(worldHud + SN2WorldHUD_BuilderRecipesListViewModel));
-                }
-
-            return new PlayerCharacterMatch(
-                matchedPlayer,
-                matchedClassName,
-                CreateCraftingTargets(helper, objects),
-                storages,
-                inventoryId,
-                recipeViewModels);
         }
 
         private PlayerCharacterMatch FindPlayerCharacterFast(IUnrealHelper helper)
@@ -3728,26 +3576,8 @@ private void UpdateSecondBaseArming()
                 nextInventoryProbeAttempt = DateTime.MinValue;
                 nextInventoryStorageRefreshAttempt = DateTime.MinValue;
 
-                ApplyCraftingTargets(playerCharacter.CraftingTargets, "discovered with player");
-                nextCraftingTargetsRefreshAttempt = playerCharacter.CraftingTargets == null
-                    ? DateTime.MinValue
-                    : DateTime.UtcNow.Add(CraftingTargetsRefreshInterval);
+                nextCraftingTargetsRefreshAttempt = DateTime.MinValue;
                 refreshCraftingTargetsAfterCurrent = false;
-                if (playerCharacter.InventoryStorages.Count > 0)
-                {
-                    inventoryStorageObjects = playerCharacter.InventoryStorages;
-                    inventoryStorageRefreshInventoryId = playerCharacter.InventoryId;
-                    inventoryStorageRefreshTask = null;
-                    logger.Log(
-                        $"Inventory storage discovered with player: inventoryId={playerCharacter.InventoryId} " +
-                        $"storageActors={inventoryStorageObjects.Count}");
-                }
-                if (playerCharacter.RecipeViewModels.Count > 0)
-                {
-                    ReplaceRecipeListViewModels(playerCharacter.RecipeViewModels);
-                    recipeListViewModelsInvalidated = false;
-                    recipeListViewModelRefreshTask = null;
-                }
             }
             catch (Exception ex)
             {
@@ -5039,7 +4869,6 @@ private void UpdateSecondBaseArming()
             if (unrealHelper == null || currentPlayerCharacterAddress == IntPtr.Zero)
                 return;
 
-            CaptureEncyclopediaStartStoryGoals();
             EnsureDatabankViewModels();
 
             bool databankEventTriggered = Ue5EventTriggered("DatabankStoryGoalUnlocked")
@@ -5421,213 +5250,12 @@ private void UpdateSecondBaseArming()
             }
         }
 
-        private void AddVisibleDatabankEntryViewModels(List<EncyEntry> entries, List<string> primaryEntryKeys, List<string> entryKeys)
-        {
-            if (unrealHelper == null)
-                return;
-
-            var entryViewModels = new List<IntPtr>();
-
-            try
-            {
-                foreach (IntPtr entryViewModel in unrealHelper.FindLiveUObjects("SN2DatabankEntryViewModel", 1024))
-                    AddUniquePointers(entryViewModels, new[] { entryViewModel });
-            }
-            catch
-            {
-            }
-
-            AddWidgetDatabankEntryViewModels(entryViewModels);
-
-            foreach (IntPtr entryViewModel in entryViewModels)
-                AddDatabankEntry(ReadDatabankEntryFromViewModel(entryViewModel), entries, primaryEntryKeys, entryKeys);
-        }
-
-        private void AddWidgetDatabankEntryViewModels(List<IntPtr> entryViewModels)
-        {
-            AddEntryViewModelsFromWidgetClass(entryViewModels, "WBP_DatabankEntry_C", WBP_DatabankEntry_SN2DatabankEntryViewModel, "SN2DatabankEntryViewModel", "ViewModel");
-            AddEntryViewModelsFromWidgetClass(entryViewModels, "WBP_DatabankEntryDetail_C", WBP_DatabankEntryDetail_ViewModel, "ViewModel", "SN2DatabankEntryViewModel");
-            AddEntryViewModelsFromWidgetClass(entryViewModels, "WBP_DatabankEntryWrapper_C", WBP_DatabankEntryWrapper_EntryViewModel, "Entry_View_Model", "EntryViewModel", "ViewModel");
-
-            try
-            {
-                int categoryViewModelOffset = GetUnrealFieldOffset("WBP_DatabankCategory_C", WBP_DatabankCategory_ViewModel, "ViewModel");
-                foreach (IntPtr categoryWidget in unrealHelper.FindLiveUObjects("WBP_DatabankCategory_C", 256))
-                    AddUniquePointers(entryViewModels, ReadDatabankCategoryEntryViewModels(game.Read<IntPtr>(categoryWidget + categoryViewModelOffset)));
-            }
-            catch
-            {
-            }
-        }
-
-        private void AddEntryViewModelsFromWidgetClass(List<IntPtr> entryViewModels, string className, int fallbackOffset, params string[] fieldNames)
-        {
-            try
-            {
-                int offset = GetUnrealFieldOffset(className, fallbackOffset, fieldNames);
-                foreach (IntPtr widget in unrealHelper.FindLiveUObjects(className, 512))
-                    AddUniquePointers(entryViewModels, new[] { game.Read<IntPtr>(widget + offset) });
-            }
-            catch
-            {
-            }
-        }
-
-        private bool AddUnlockedConfiguredDatabankEntries(
-            List<string> configuredEntryNames,
-            DatabankStoryGoalState startStoryGoals,
-            List<EncyEntry> entries,
-            List<string> primaryEntryKeys,
-            List<string> entryKeys,
-            List<EncyEntry> baselineEntries,
-            List<string> baselinePrimaryEntryKeys,
-            List<string> baselineEntryKeys)
-        {
-            DatabankStoryGoalState currentStoryGoals = ReadPlayerStoryGoals();
-            if (currentStoryGoals.Count == 0)
-                return false;
-
-            int resolvedNames = 0;
-            foreach (string objectName in configuredEntryNames)
-            {
-                List<IntPtr> matches;
-                lock (databankEntryAssetCacheLock)
-                {
-                    matches = databankEntryAssets
-                        .Where(pointer => TryReadUObjectName(pointer, out string name)
-                            && name.Equals(objectName, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                }
-
-                if (matches.Count == 0)
-                {
-                    try
-                    {
-                        matches = unrealHelper.FindLiveUObjectsByName(objectName, "UWEDatabankEntry", 8)
-                            .Where(pointer => pointer != IntPtr.Zero)
-                            .Distinct()
-                            .ToList();
-                    }
-                    catch
-                    {
-                        matches = new List<IntPtr>();
-                    }
-
-                    lock (databankEntryAssetCacheLock)
-                        foreach (IntPtr match in matches)
-                            if (!databankEntryAssets.Contains(match))
-                                databankEntryAssets.Add(match);
-                }
-
-                if (matches.Count == 0)
-                    continue;
-
-                resolvedNames++;
-                foreach (IntPtr databankEntry in matches)
-                {
-                    if (IsDatabankEntryUnlocked(databankEntry, currentStoryGoals))
-                        AddDatabankEntry(databankEntry, entries, primaryEntryKeys, entryKeys);
-                    if (startStoryGoals != null && IsDatabankEntryUnlocked(databankEntry, startStoryGoals))
-                        AddDatabankEntry(databankEntry, baselineEntries, baselinePrimaryEntryKeys, baselineEntryKeys);
-                }
-            }
-
-            return resolvedNames == configuredEntryNames.Count;
-        }
-
-        private bool AddUnlockedLiveDatabankEntries(
-            DatabankStoryGoalState startStoryGoals,
-            List<EncyEntry> entries,
-            List<string> primaryEntryKeys,
-            List<string> entryKeys,
-            List<EncyEntry> baselineEntries,
-            List<string> baselinePrimaryEntryKeys,
-            List<string> baselineEntryKeys)
-        {
-            if (unrealHelper == null)
-                return false;
-
-            DatabankStoryGoalState unlockedStoryGoals = ReadPlayerStoryGoals();
-            if (unlockedStoryGoals.Count == 0)
-                unlockedStoryGoals = ReadGlobalDatabankStoryGoals();
-            if (unlockedStoryGoals.Count == 0)
-                return false;
-
-            try
-            {
-                List<IntPtr> liveEntries = GetLiveDatabankEntryAssets();
-                if (liveEntries.Count == 0)
-                    return false;
-
-                foreach (IntPtr databankEntry in liveEntries)
-                {
-                    if (IsDatabankEntryUnlocked(databankEntry, unlockedStoryGoals))
-                        AddDatabankEntry(databankEntry, entries, primaryEntryKeys, entryKeys);
-                    if (startStoryGoals != null && IsDatabankEntryUnlocked(databankEntry, startStoryGoals))
-                        AddDatabankEntry(databankEntry, baselineEntries, baselinePrimaryEntryKeys, baselineEntryKeys);
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private List<IntPtr> GetLiveDatabankEntryAssets()
-        {
-            DateTime now = DateTime.UtcNow;
-            lock (databankEntryAssetCacheLock)
-            {
-                if (databankEntryAssets.Count > 0 && now < nextDatabankEntryAssetRefresh)
-                    return databankEntryAssets.ToList();
-
-                nextDatabankEntryAssetRefresh = now.AddSeconds(
-                    databankEntryAssets.Count == 0 ? 2 : 30);
-            }
-
-            List<IntPtr> discovered;
-            try
-            {
-                discovered = unrealHelper.FindLiveUObjects("UWEDatabankEntry", 4096)
-                    .Where(pointer => pointer != IntPtr.Zero)
-                    .Distinct()
-                    .ToList();
-            }
-            catch
-            {
-                discovered = new List<IntPtr>();
-            }
-
-            lock (databankEntryAssetCacheLock)
-            {
-                int previousCount = databankEntryAssets.Count;
-                foreach (IntPtr entry in discovered)
-                    if (!databankEntryAssets.Contains(entry))
-                        databankEntryAssets.Add(entry);
-
-                if (databankEntryAssets.Count != previousCount)
-                    logger.Log($"Databank entry asset catalog refreshed: entries={databankEntryAssets.Count}");
-
-                return databankEntryAssets.ToList();
-            }
-        }
-
         private sealed class DatabankStoryGoalState
         {
             public readonly HashSet<IntPtr> Pointers = new HashSet<IntPtr>();
             public readonly HashSet<string> Names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             public int Count => Pointers.Count + Names.Count;
-
-            public DatabankStoryGoalState Clone()
-            {
-                var clone = new DatabankStoryGoalState();
-                clone.Pointers.UnionWith(Pointers);
-                clone.Names.UnionWith(Names);
-                return clone;
-            }
 
             public void AddPointer(IntPtr pointer)
             {
@@ -5645,64 +5273,6 @@ private void UpdateSecondBaseArming()
                 }
             }
 
-            public bool ContainsName(string name)
-            {
-                foreach (string candidate in StoryGoalNameCandidates(name))
-                {
-                    string normalized = NormalizeEnumCandidate(candidate);
-                    if (!string.IsNullOrEmpty(normalized) && Names.Contains(normalized))
-                        return true;
-                }
-
-                return false;
-            }
-        }
-
-        private DatabankStoryGoalState ReadDatabankStoryGoals(IntPtr databankViewModel)
-        {
-            var result = new DatabankStoryGoalState();
-
-            try
-            {
-                int storyGoalContainerOffset = GetUnrealFieldOffset("SN2DatabankViewModel", SN2DatabankViewModel_StoryGoalContainer, "StoryGoalContainer", "StoryGoalsContainer");
-                IntPtr storyGoalContainer = game.Read<IntPtr>(databankViewModel + storyGoalContainerOffset);
-                AddStoryGoalsFromContainer(storyGoalContainer, result);
-            }
-            catch
-            {
-            }
-
-            if (result.Count == 0)
-                AddGlobalStoryGoalContainers(result);
-
-            return result;
-        }
-
-        private DatabankStoryGoalState ReadGlobalDatabankStoryGoals()
-        {
-            var result = new DatabankStoryGoalState();
-
-            if (unrealHelper == null)
-                return result;
-
-            try
-            {
-                AddGlobalStoryGoalContainers(result);
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                foreach (IntPtr subsystem in unrealHelper.FindLiveUObjects("UWEStoryGoalsWorldSubsystem", 4))
-                    AddStoryGoalsFromSubsystem(subsystem, result);
-            }
-            catch
-            {
-            }
-
-            return result;
         }
 
         private void UpdateStoryGoals()
@@ -5757,14 +5327,6 @@ private void UpdateSecondBaseArming()
             currentStoryGoals = readGoals;
             foreach (StoryGoal goal in currentStoryGoals.Except(previousStoryGoals))
                 logger.Log($"Story Goal completed: {goal}");
-        }
-
-        private DatabankStoryGoalState ReadPlayerStoryGoals()
-        {
-            var result = new DatabankStoryGoalState();
-            if (TryGetPlayerStoryGoalContainer(out IntPtr storyGoalContainer))
-                AddStoryGoalsFromContainer(storyGoalContainer, result);
-            return result;
         }
 
         private bool TryGetPlayerStoryGoalContainer(out IntPtr storyGoalContainer)
@@ -5823,57 +5385,6 @@ private void UpdateSecondBaseArming()
             && (goal == StoryGoal.Any
                 ? currentStoryGoals.Any(value => !previousStoryGoals.Contains(value))
                 : currentStoryGoals.Contains(goal) && !previousStoryGoals.Contains(goal));
-
-        private void AddGlobalStoryGoalContainers(DatabankStoryGoalState result)
-        {
-            if (unrealHelper == null)
-                return;
-
-            try
-            {
-                foreach (IntPtr storyGoalContainer in unrealHelper.FindLiveUObjects("UWEStoryGoalContainerComponent", 16))
-                    AddStoryGoalsFromContainer(storyGoalContainer, result);
-            }
-            catch
-            {
-            }
-
-            AddStoryGoalsFromContainerOwners("SN2PlayerState", SN2PlayerState_StoryGoalContainerComponent, result, "StoryGoalContainerComponent", "StoryGoalContainer");
-            AddStoryGoalsFromContainerOwners("BP_SN2PlayerState_C", SN2PlayerState_StoryGoalContainerComponent, result, "StoryGoalContainerComponent", "StoryGoalContainer");
-            AddStoryGoalsFromContainerOwners("SN2GameState", SN2GameState_StoryGoalContainerComponent, result, "StoryGoalContainerComponent", "StoryGoalContainer");
-            AddStoryGoalsFromContainerOwners("BP_SN2GameState_C", SN2GameState_StoryGoalContainerComponent, result, "StoryGoalContainerComponent", "StoryGoalContainer");
-        }
-
-        private void AddStoryGoalsFromContainerOwners(string ownerClassName, int fallbackOffset, DatabankStoryGoalState result, params string[] fieldNames)
-        {
-            try
-            {
-                int offset = GetUnrealFieldOffset(ownerClassName, fallbackOffset, fieldNames);
-                foreach (IntPtr owner in unrealHelper.FindLiveUObjects(ownerClassName, 8))
-                    AddStoryGoalsFromContainer(game.Read<IntPtr>(owner + offset), result);
-            }
-            catch
-            {
-            }
-        }
-
-        private void AddStoryGoalsFromSubsystem(IntPtr subsystem, DatabankStoryGoalState result)
-        {
-            if (subsystem == IntPtr.Zero)
-                return;
-
-            try
-            {
-                if (!TryGetUnrealFieldOffset("UWEStoryGoalsWorldSubsystem", out int storyGoalContainerOffset, "StoryGoalContainer", "StoryGoalsContainer", "GoalContainer"))
-                    return;
-
-                IntPtr storyGoalContainer = game.Read<IntPtr>(subsystem + storyGoalContainerOffset);
-                AddStoryGoalsFromContainer(storyGoalContainer, result);
-            }
-            catch
-            {
-            }
-        }
 
         private void AddStoryGoalsFromContainer(IntPtr storyGoalContainer, DatabankStoryGoalState result)
         {
@@ -5962,126 +5473,6 @@ private void UpdateSecondBaseArming()
                 name = string.Empty;
                 return false;
             }
-        }
-
-        private bool IsDatabankEntryUnlocked(IntPtr databankEntry, DatabankStoryGoalState unlockedStoryGoals)
-        {
-            if (databankEntry == IntPtr.Zero)
-                return false;
-
-            try
-            {
-                int unlockingRequirementsOffset = GetUnrealFieldOffset("UWEDatabankEntry", UWEDatabankEntry_UnlockingRequirements, "UnlockingRequirements", "UnlockingRequirement", "UnlockRule", "UnlockingRule");
-                IntPtr unlockingRequirements = game.Read<IntPtr>(databankEntry + unlockingRequirementsOffset);
-                return IsStoryGoalRuleSatisfied(unlockingRequirements, unlockedStoryGoals, new HashSet<IntPtr>());
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private bool IsStoryGoalRuleSatisfied(IntPtr rule, DatabankStoryGoalState unlockedStoryGoals, HashSet<IntPtr> visitedRules)
-        {
-            if (rule == IntPtr.Zero)
-                return true;
-
-            if (!visitedRules.Add(rule))
-                return false;
-
-            string className;
-            try
-            {
-                className = GetUObjectClassName(rule);
-            }
-            catch
-            {
-                return false;
-            }
-
-            try
-            {
-                if (IsUObjectClass(className, "UWERequiredStoryGoalRule"))
-                {
-                    int requiredStoryGoalOffset = GetUnrealFieldOffset("UWERequiredStoryGoalRule", UWERequiredStoryGoalRule_RequiredStoryGoalRef, "RequiredStoryGoalRef", "RequiredStoryGoal", "StoryGoal");
-                    return IsRequiredStoryGoalSatisfied(rule + requiredStoryGoalOffset, unlockedStoryGoals);
-                }
-
-                if (IsUObjectClass(className, "UWEStoryGoalRuleAnd"))
-                {
-                    int rulesOffset = GetUnrealFieldOffset("UWEStoryGoalRuleComposite", UWEStoryGoalRuleComposite_Rules, "Rules", "ChildRules");
-                    List<IntPtr> rules = ReadPointerArray(rule + rulesOffset, 128);
-                    return rules.Count == 0 || rules.All(childRule => IsStoryGoalRuleSatisfied(childRule, unlockedStoryGoals, visitedRules));
-                }
-
-                if (IsUObjectClass(className, "UWEStoryGoalRuleOr"))
-                {
-                    int rulesOffset = GetUnrealFieldOffset("UWEStoryGoalRuleComposite", UWEStoryGoalRuleComposite_Rules, "Rules", "ChildRules");
-                    return ReadPointerArray(rule + rulesOffset, 128)
-                        .Any(childRule => IsStoryGoalRuleSatisfied(childRule, unlockedStoryGoals, visitedRules));
-                }
-
-                if (IsUObjectClass(className, "UWEStoryGoalRuleCount"))
-                {
-                    int rulesOffset = GetUnrealFieldOffset("UWEStoryGoalRuleComposite", UWEStoryGoalRuleComposite_Rules, "Rules", "ChildRules");
-                    int minimumCountOffset = GetUnrealFieldOffset("UWEStoryGoalRuleCount", UWEStoryGoalRuleCount_MinimumCount, "MinimumCount", "MinCount");
-                    List<IntPtr> rules = ReadPointerArray(rule + rulesOffset, 128);
-                    int minimumCount = game.Read<int>(rule + minimumCountOffset);
-                    int satisfied = rules.Count(childRule => IsStoryGoalRuleSatisfied(childRule, unlockedStoryGoals, visitedRules));
-                    return satisfied >= minimumCount;
-                }
-
-                if (IsUObjectClass(className, "UWEStoryGoalRuleNegate"))
-                {
-                    int ruleToNegateOffset = GetUnrealFieldOffset("UWEStoryGoalRuleNegate", UWEStoryGoalRuleNegate_RuleToNegate, "RuleToNegate", "Rule", "ChildRule");
-                    IntPtr childRule = game.Read<IntPtr>(rule + ruleToNegateOffset);
-                    return !IsStoryGoalRuleSatisfied(childRule, unlockedStoryGoals, visitedRules);
-                }
-
-                return false;
-            }
-            finally
-            {
-                visitedRules.Remove(rule);
-            }
-        }
-
-        private bool IsRequiredStoryGoalSatisfied(IntPtr storyGoalRefAddress, DatabankStoryGoalState unlockedStoryGoals)
-        {
-            try
-            {
-                IntPtr requiredStoryGoal = game.Read<IntPtr>(storyGoalRefAddress);
-                if (unlockedStoryGoals.Pointers.Contains(requiredStoryGoal))
-                    return true;
-
-                if (TryReadUObjectName(requiredStoryGoal, out string storyGoalName)
-                    && unlockedStoryGoals.ContainsName(storyGoalName))
-                    return true;
-            }
-            catch
-            {
-            }
-
-            foreach (string storyGoalName in ReadStoryGoalReferenceNames(storyGoalRefAddress))
-                if (unlockedStoryGoals.ContainsName(storyGoalName))
-                    return true;
-
-            return false;
-        }
-
-        private IEnumerable<string> ReadStoryGoalReferenceNames(IntPtr storyGoalRefAddress)
-        {
-            string primaryAssetName = ReadPrimaryAssetIdName(storyGoalRefAddress);
-            if (!string.IsNullOrEmpty(primaryAssetName))
-                yield return primaryAssetName;
-
-            string typeName = ReadFNameString(storyGoalRefAddress);
-            if (!string.IsNullOrEmpty(typeName))
-                yield return typeName;
-
-            string name = ReadFNameString(storyGoalRefAddress + FPrimaryAssetId_PrimaryAssetName);
-            if (!string.IsNullOrEmpty(name))
-                yield return name;
         }
 
         private static bool IsUObjectClass(string className, string expectedClassName)

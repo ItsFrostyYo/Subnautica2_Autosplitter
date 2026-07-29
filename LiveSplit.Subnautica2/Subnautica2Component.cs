@@ -31,7 +31,7 @@ namespace LiveSplit.Subnautica2
             Localization.Load();
             _state = state;
             settings = new Subnautica2Settings(state);
-            memory = new Subnautica2Memory(state, this, logger, settings);
+            memory = new Subnautica2Memory(logger, settings);
         }
 
         public override bool Update()
