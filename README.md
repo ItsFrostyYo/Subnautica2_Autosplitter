@@ -56,7 +56,6 @@ Auto Splits can have Additional Conditions. For Example, a Split can Require the
 This Button Generates LiveSplit Segments from the Configured Auto Splits. Generating Splits Overwrites the Existing LiveSplit Segments and Times after Confirmation.
 
 # Known Issues
-- Encyclopedia/Databank Entry Tracking is Still Being Corrected and Currently is Unreliable.
 - Build Splits Work but are being Improved for Consistency and can Currently Break by repeated Opening Inventory, Entering Vehicles or Swapping Menus before Completing the Build, Direct Builds after Placement should Consistently Split.
 - Game Updates May Break Memory Offsets, Unreal Engine Field Layouts, or Registered Events, Version `121347` will Consistently Work.
 - Restarting the Game May Rarely Break the Autosplitter. If this Happens, Restart LiveSplit or Reload the Autosplitter.
