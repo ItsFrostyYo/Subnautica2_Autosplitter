@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <updates>
+    <update version="1.3.0.7">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Added Full Inventory Prefabricated Split</change>
+            <change>Fixed Encyclopedia/Databank Entry Splits to work</change>
+            <change>Small Cleanup</change>
+        </changelog>
+    </update>  
     <update version="1.2.0.2">
         <files>
             <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>

@@ -245,6 +245,8 @@ namespace LiveSplit.Subnautica2
         None,
         [Description("Inventory"), ToolTip("Splits when you Pickup/Drop a Certain Item")]
         Inventory,
+        [Description("Full Inventory"), ToolTip("Splits when Every Currently Available Player Inventory Slot Becomes Full")]
+        FullInventory,
         [Description("Blueprint"), ToolTip("Splits when you Have/Unlock a Certain Blueprint")]
         Blueprint,
         [Description("Encyclopedia"), ToolTip("Splits when you Have/Unlock a Certain Databank Entry in the Encyclopedia")]
@@ -281,7 +283,7 @@ namespace LiveSplit.Subnautica2
         SonicResonatorBlastShot,
         [Description("Scan Rosetta Stone"), ToolTip("Splits when you Scan the Rosetta Stone and Unlock Story Goal Rosetta_TranslationUnlocked")]
         ScanRosettaStone,
-        [Description("(End) Obesrvatory Button Press"), ToolTip("Splits when the Final Observatory Button is Pressed")]
+        [Description("(End) Observatory Button Press"), ToolTip("Splits when the Final Observatory Button is Pressed")]
         FinalObservatoryButtonPress,
         [Description("Build Processor"), ToolTip("Splits when a Processor Station is attached after being built")]
         BuildProcessor,

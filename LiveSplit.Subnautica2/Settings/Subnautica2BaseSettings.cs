@@ -137,6 +137,7 @@ namespace LiveSplit.Subnautica2
             {
                 SplitName.AngelCombAdaptation,
                 SplitName.BiobedAdaptation,
+                SplitName.FullInventory,
                 SplitName.IntroAnalyzingButtonPress,
                 SplitName.IntroReleaseLifepod,
                 SplitName.IntroLifepodAscend,

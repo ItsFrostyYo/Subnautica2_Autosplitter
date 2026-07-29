@@ -97,6 +97,10 @@ namespace LiveSplit.Subnautica2.UE5Events
             Add("RepairTurbine", "BP_PowerPlant_FixedTurbineBlade_C", null, "OnUnlocked_8DED1B5341E414D6BCD2C6B91609A9C5");
             Add("BuildHatch", "BP_BaseHatch_C", "BP_BaseHatch_C", "BndEvt__BP_BaseHatch_UWEAttachable_K2Node_ComponentBoundEvent_0_OnAttached__DelegateSignature");
             Add("BuildProcessor", "BP_ProcessorStation_C", "BP_ProcessorStation_C", "OnAttached");
+            // Databank progression. These are notifications only; the memory
+            // reader resolves the concrete entry from SN2DatabankViewModel.
+            Add("DatabankStoryGoalUnlocked", "SN2DatabankViewModel", null, "OnStoryGoalUnlocked");
+            Add("DatabankScanCompleted", "UWEScannedActorsComponent", null, "OnScanCompletedEventFired");
             // End
             Add("FinalObservatoryButtonPress", "BP_Hologram_AxumFinale_Button_C", null, "ToggledOn");
 

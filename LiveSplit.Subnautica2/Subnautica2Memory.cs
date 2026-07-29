@@ -42,7 +42,7 @@ namespace LiveSplit.Subnautica2
         private static readonly string[] PlayerCharacterClassNames = new[] { "SN2PlayerCharacter", "BP_SN2PlayerCharacter_C" };
         private static readonly string[] WorldHudClassNames = new[] { "SN2WorldHUD", "BP_SN2WorldHUD_C" };
         private static readonly Lazy<Dictionary<string, EncyEntry>> EncyEntryAliases = new Lazy<Dictionary<string, EncyEntry>>(BuildEncyEntryAliases);
-        private static readonly TimeSpan EncyclopediaUpdateInterval = TimeSpan.FromMilliseconds(1000);
+        private static readonly TimeSpan EncyclopediaUpdateInterval = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan BiomeUpdateInterval = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan CurrentBiomeLogInterval = TimeSpan.FromSeconds(2);
         private const int EnumDiscoveryMaxObjects = 1024;
@@ -155,6 +155,10 @@ namespace LiveSplit.Subnautica2
         private string playerCharacterClassName = string.Empty;
         private DateTime nextInventoryStorageRefreshAttempt = DateTime.MinValue;
         private bool inventoryBaselineInitialized;
+        private int playerInventoryOccupiedSlots;
+        private int playerInventoryOccupiedSlotsOld;
+        private int playerInventoryCapacity;
+        private int playerInventoryCapacityOld;
         private int lastPlayerInventoryId = int.MinValue;
         private readonly List<IntPtr> recipeListViewModels = new List<IntPtr>();
         private Task<List<IntPtr>> recipeListViewModelRefreshTask;
@@ -180,13 +184,18 @@ namespace LiveSplit.Subnautica2
         private List<string> encyclopediaEntryKeysOld = new List<string>();
         private readonly Dictionary<IntPtr, DatabankEntryInfo> databankEntryInfoCache = new Dictionary<IntPtr, DatabankEntryInfo>();
         private readonly object databankEntryInfoCacheLock = new object();
+        private readonly List<IntPtr> databankEntryAssets = new List<IntPtr>();
+        private readonly object databankEntryAssetCacheLock = new object();
+        private DateTime nextDatabankEntryAssetRefresh = DateTime.MinValue;
         private readonly Dictionary<string, int> unrealFieldOffsetCache = new Dictionary<string, int>(StringComparer.Ordinal);
         private int activeCraftStride;
         private string lastEncyclopediaReadState = string.Empty;
+        private string lastEncyclopediaProbeState = string.Empty;
         private Task<EncyclopediaReadResult> encyclopediaReadTask;
         private bool encyclopediaReadTaskResetsBaseline;
         private int encyclopediaReadGeneration;
         private int encyclopediaReadTaskGeneration;
+        private DatabankStoryGoalState encyclopediaStartStoryGoals;
 
         public Dictionary<InventoryItem, int> PlayerInventory = new Dictionary<InventoryItem, int>();
         public Dictionary<InventoryItem, int> PlayerInventoryOld = new Dictionary<InventoryItem, int>();
@@ -294,14 +303,31 @@ namespace LiveSplit.Subnautica2
             public readonly List<EncyEntry> Entries;
             public readonly List<string> PrimaryKeys;
             public readonly List<string> Keys;
+            public readonly List<EncyEntry> BaselineEntries;
+            public readonly List<string> BaselinePrimaryKeys;
+            public readonly List<string> BaselineKeys;
+            public readonly bool AuthoritativeReadCompleted;
             public readonly bool ShouldInvalidateDatabankViewModels;
             public readonly string InvalidateReason;
 
-            public EncyclopediaReadResult(List<EncyEntry> entries, List<string> primaryKeys, List<string> keys, bool shouldInvalidateDatabankViewModels, string invalidateReason)
+            public EncyclopediaReadResult(
+                List<EncyEntry> entries,
+                List<string> primaryKeys,
+                List<string> keys,
+                List<EncyEntry> baselineEntries,
+                List<string> baselinePrimaryKeys,
+                List<string> baselineKeys,
+                bool authoritativeReadCompleted,
+                bool shouldInvalidateDatabankViewModels,
+                string invalidateReason)
             {
                 Entries = entries;
                 PrimaryKeys = primaryKeys;
                 Keys = keys;
+                BaselineEntries = baselineEntries;
+                BaselinePrimaryKeys = baselinePrimaryKeys;
+                BaselineKeys = baselineKeys;
+                AuthoritativeReadCompleted = authoritativeReadCompleted;
                 ShouldInvalidateDatabankViewModels = shouldInvalidateDatabankViewModels;
                 InvalidateReason = invalidateReason;
             }
@@ -362,6 +388,7 @@ namespace LiveSplit.Subnautica2
         }
 
         private const int UWEInventoryComponent_InventoryId = 0x100;
+        private const int UWEInventoryComponent_MaxItems = 0x108;
         private const int UWEInventoryStorage_StorageContainers = 0x2C8;
         private const int UWEInventoryStorage_ItemsContainer = 0x2D8;
         private const int FUWEInventoryStorageContainer_Stride = 0x38;
@@ -412,7 +439,8 @@ namespace LiveSplit.Subnautica2
         private const int UUWEWorldZoneTrackerSubsystem_Zones = 0x40;
         private const int UBoxComponent_BoxExtent = 0x550;
         private const int USphereComponent_SphereRadius = 0x550;
-        private const int SN2WorldHUD_DatabankViewModel = 0x408;
+        private const int SN2WorldHUD_DatabankViewModel = 0x410;
+        private const int PlayerController_MyHUD = 0x360;
         private const int SN2WorldHUD_FabricatorRecipesListViewModel = 0x438;
         private const int SN2WorldHUD_PDARecipesListViewModel = 0x440;
         private const int SN2WorldHUD_BuilderRecipesListViewModel = 0x448;
@@ -444,9 +472,12 @@ namespace LiveSplit.Subnautica2
         private const int SN2DatabankViewModel_Root = 0x78;
         private const int SN2DatabankViewModel_StoryGoalContainer = 0x80;
         private const int SN2DatabankViewModel_DatabankEntries = 0x88;
+        private const int SN2DatabankViewModel_Categories = 0x98;
         private const int SN2DatabankCategoryViewModel_SubCategories = 0x78;
         private const int SN2DatabankCategoryViewModel_Entries = 0x88;
         private const int SN2DatabankEntryViewModel_Entry = 0x68;
+        private const int SN2DatabankEntryViewModel_IsVisible = 0x81;
+        private const int SN2DatabankEntryViewModel_IsPublished = 0x82;
         private const int WBP_TabDatabank_ViewModel = 0x518;
         private const int WBP_DatabankCategory_ViewModel = 0x4E0;
         private const int WBP_DatabankEntry_SN2DatabankEntryViewModel = 0x1580;
@@ -527,6 +558,7 @@ namespace LiveSplit.Subnautica2
                     playerCharacterClassName = string.Empty;
                     nextInventoryStorageRefreshAttempt = DateTime.MinValue;
                     inventoryBaselineInitialized = false;
+                    ResetFullInventoryState();
                     lastPlayerInventoryId = int.MinValue;
                     currentInventoryChanges.Clear();
                     currentCraftEvents.Clear();
@@ -592,6 +624,7 @@ namespace LiveSplit.Subnautica2
                     encyclopediaReadTaskResetsBaseline = false;
                     encyclopediaReadGeneration++;
                     encyclopediaReadTaskGeneration = encyclopediaReadGeneration;
+                    encyclopediaStartStoryGoals = null;
                     currentStoryGoals.Clear();
                     previousStoryGoals.Clear();
                     storyGoalBaselineInitialized = false;
@@ -620,6 +653,7 @@ namespace LiveSplit.Subnautica2
                                                         return !inv.IsCount && HasPlayerItem(inv.Item)
                                                             || inv.IsCount && GetPlayerItemCount(inv.Item) == inv.Count;
                                                         } },
+                { SplitName.FullInventory,        IsPlayerInventoryFull },
                 { SplitName.Blueprint,            () => HasBlueprint(((BlueprintSplit)CurrentSplitToCheck).Blueprint) },
                 { SplitName.Craft,                () => currentCraftEvents.Contains(((CraftSplit)CurrentSplitToCheck).Craftable) },
                 { SplitName.Build,                () => currentBuildEvents.Contains(((BuildSplit)CurrentSplitToCheck).Buildable) },
@@ -673,6 +707,7 @@ namespace LiveSplit.Subnautica2
                                                         inv.AlreadySplitInvChanging = split;
                                                         return split;
                                                         } },
+                { SplitName.FullInventory,        () => IsPlayerInventoryFull() && !WasPlayerInventoryFull() },
                 { SplitName.Blueprint,            () => {
                                                         var blueprint = ((BlueprintSplit)CurrentSplitToCheck).Blueprint;
                                                         return HasNewBlueprint(blueprint);
@@ -821,6 +856,7 @@ namespace LiveSplit.Subnautica2
             playerDiscoveryAllowed = true;
             gameplayInitializationPending = true;
             gameplayInitializationReason = reason;
+            CaptureEncyclopediaStartStoryGoals();
             logger.Log($"Gameplay initialization queued after {reason}");
         }
 
@@ -834,6 +870,7 @@ namespace LiveSplit.Subnautica2
             gameplayInitializationReason = string.Empty;
             nextLocalPlayerResolveAttempt = DateTime.MinValue;
             AttachPlayerFromLocalPlayer();
+            CaptureEncyclopediaStartStoryGoals();
 
             nextInventoryProbeAttempt = DateTime.MinValue;
             nextInventoryStorageRefreshAttempt = DateTime.MinValue;
@@ -844,6 +881,22 @@ namespace LiveSplit.Subnautica2
             nextEncyclopediaUpdateAttempt = DateTime.MinValue;
 
             logger.Log($"Gameplay initialization started after {reason}: player, inventory, craft, build, biome, blueprint, and encyclopedia");
+        }
+
+        private void CaptureEncyclopediaStartStoryGoals()
+        {
+            if (encyclopediaStartStoryGoals != null
+                || settings == null
+                || !Needs(SplitName.Encyclopedia)
+                || currentPlayerCharacterAddress == IntPtr.Zero)
+                return;
+
+            DatabankStoryGoalState state = ReadPlayerStoryGoals();
+            if (state.Count == 0)
+                return;
+
+            encyclopediaStartStoryGoals = state.Clone();
+            logger.Log($"Encyclopedia start state captured: storyGoals={state.Names.Count}");
         }
 
         private void AttachPlayerFromLocalPlayer()
@@ -918,6 +971,8 @@ namespace LiveSplit.Subnautica2
             nextInventoryStorageRefreshAttempt = DateTime.MinValue;
             nextCraftingTargetsRefreshAttempt = DateTime.MinValue;
             nextBiomeProbeAttempt = DateTime.MinValue;
+            if (Needs(SplitName.Encyclopedia))
+                TryAttachCurrentDatabankViewModel();
             logger.Log($"Player attached directly: source={source} class={className} player={player.ToString("X")}");
         }
 
@@ -941,6 +996,7 @@ namespace LiveSplit.Subnautica2
             inventoryStorageRefreshTask = null;
             inventoryStorageRefreshInventoryId = int.MinValue;
             inventoryBaselineInitialized = false;
+            ResetFullInventoryState();
             lastPlayerInventoryId = int.MinValue;
             currentInventoryChanges.Clear();
             craftingTargetsRefreshTask = null;
@@ -971,9 +1027,15 @@ namespace LiveSplit.Subnautica2
             databankViewModelRefreshTask = null;
             databankViewModelsInvalidated = true;
             databankViewModelsChanged = true;
+            lock (databankEntryAssetCacheLock)
+                databankEntryAssets.Clear();
+            nextDatabankEntryAssetRefresh = DateTime.MinValue;
+            lock (databankEntryInfoCacheLock)
+                databankEntryInfoCache.Clear();
             encyclopediaReadGeneration++;
             encyclopediaReadTask = null;
             encyclopediaReadTaskResetsBaseline = false;
+            encyclopediaStartStoryGoals = null;
             nextDatabankProbeAttempt = DateTime.MinValue;
             nextEncyclopediaUpdateAttempt = DateTime.MinValue;
             lastEncyclopediaReadState = string.Empty;
@@ -1141,6 +1203,7 @@ private void UpdateSecondBaseArming()
 
     if (Needs(
             SplitName.Inventory,
+            SplitName.FullInventory,
             SplitName.Craft,
             SplitName.Build)
         || EnableEnumDiscoveryLogs)
@@ -1148,7 +1211,7 @@ private void UpdateSecondBaseArming()
         EnsureInventoryProbe();
     }
 
-    if (Needs(SplitName.Inventory) || EnableEnumDiscoveryLogs)
+    if (Needs(SplitName.Inventory, SplitName.FullInventory) || EnableEnumDiscoveryLogs)
         UpdateInventory();
 
     if (Needs(SplitName.Blueprint) || EnableEnumDiscoveryLogs)
@@ -1159,6 +1222,7 @@ private void UpdateSecondBaseArming()
 
     if (Needs(
             SplitName.StoryGoal,
+            SplitName.Encyclopedia,
             SplitName.SecondBase,
             SplitName.ScanRosettaStone,
             SplitName.EnterTadpoleAfterSecondBase))
@@ -3583,6 +3647,7 @@ private void UpdateSecondBaseArming()
             inventoryStorageRefreshTask = null;
             inventoryStorageRefreshInventoryId = int.MinValue;
             inventoryBaselineInitialized = false;
+            ResetFullInventoryState();
             lastPlayerInventoryId = int.MinValue;
             currentInventoryChanges.Clear();
             curPickUpCounts.Clear();
@@ -3762,7 +3827,7 @@ private void UpdateSecondBaseArming()
             if (inventoryStorageObjects.Count == 0)
                 return;
 
-            var newInventory = ReadInventoryCounts();
+            var newInventory = ReadInventoryCounts(out int occupiedSlots, out int capacity);
             var toolbarActors = new HashSet<IntPtr>();
             var equippedToolbarItemTypes = new HashSet<IntPtr>();
             MergeCounts(newInventory, ReadToolbarCounts(toolbarActors, equippedToolbarItemTypes));
@@ -3777,8 +3842,12 @@ private void UpdateSecondBaseArming()
                 currentInventoryChanges.Clear();
                 curPickUpCounts.Clear();
                 curDropCounts.Clear();
+                playerInventoryOccupiedSlots = occupiedSlots;
+                playerInventoryOccupiedSlotsOld = occupiedSlots;
+                playerInventoryCapacity = capacity;
+                playerInventoryCapacityOld = capacity;
                 inventoryBaselineInitialized = true;
-                logger.Log($"Inventory baseline initialized: inventoryItems={PlayerInventory.Count} equipmentItems={PlayerEquipment.Count}");
+                logger.Log($"Inventory baseline initialized: inventoryItems={PlayerInventory.Count} equipmentItems={PlayerEquipment.Count} slots={occupiedSlots}/{capacity}");
                 return;
             }
 
@@ -3786,6 +3855,16 @@ private void UpdateSecondBaseArming()
             PlayerInventory = newInventory;
             PlayerEquipmentOld = PlayerEquipment;
             PlayerEquipment = newEquipment;
+            playerInventoryOccupiedSlotsOld = playerInventoryOccupiedSlots;
+            playerInventoryCapacityOld = playerInventoryCapacity;
+            playerInventoryOccupiedSlots = occupiedSlots;
+            playerInventoryCapacity = capacity;
+
+            if (IsPlayerInventoryFull() != WasPlayerInventoryFull()
+                || playerInventoryCapacity != playerInventoryCapacityOld)
+            {
+                logger.Log($"Inventory slots: {playerInventoryOccupiedSlots}/{playerInventoryCapacity} full={IsPlayerInventoryFull()}");
+            }
 
             Dictionary<InventoryItem, int> changedItems =
                 PlayerInventory.Keys
@@ -3854,6 +3933,24 @@ private void UpdateSecondBaseArming()
 
         private bool HasPlayerItem(InventoryItem item) => GetPlayerItemCount(item) > 0;
 
+        private bool IsPlayerInventoryFull() =>
+            inventoryBaselineInitialized
+            && playerInventoryCapacity > 0
+            && playerInventoryOccupiedSlots >= playerInventoryCapacity;
+
+        private bool WasPlayerInventoryFull() =>
+            inventoryBaselineInitialized
+            && playerInventoryCapacityOld > 0
+            && playerInventoryOccupiedSlotsOld >= playerInventoryCapacityOld;
+
+        private void ResetFullInventoryState()
+        {
+            playerInventoryOccupiedSlots = 0;
+            playerInventoryOccupiedSlotsOld = 0;
+            playerInventoryCapacity = 0;
+            playerInventoryCapacityOld = 0;
+        }
+
         private void RequestCraftingTargetRefresh()
         {
             if (craftingTargetsRefreshTask == null)
@@ -3877,8 +3974,10 @@ private void UpdateSecondBaseArming()
                 target[count.Key] = GetDictionaryCount(target, count.Key) + count.Value;
         }
 
-        private Dictionary<InventoryItem, int> ReadInventoryCounts()
+        private Dictionary<InventoryItem, int> ReadInventoryCounts(out int occupiedSlots, out int capacity)
         {
+            occupiedSlots = 0;
+            capacity = 0;
             var result = new Dictionary<InventoryItem, int>();
             if (playerInventoryComponent == null || unrealHelper == null)
                 return result;
@@ -3893,6 +3992,14 @@ private void UpdateSecondBaseArming()
                 if (inventoryId < 0)
                     return result;
 
+                int maxItemsOffset = GetUnrealFieldOffset(
+                    "UWEInventoryComponent",
+                    UWEInventoryComponent_MaxItems,
+                    "MaxItems");
+                int maxItems = game.Read<int>(inventoryComponent + maxItemsOffset);
+                if (maxItems > 0 && maxItems <= 2048)
+                    capacity = maxItems;
+
                 if (inventoryId != lastPlayerInventoryId)
                 {
                     logger.Log($"Player inventory id changed: {lastPlayerInventoryId} -> {inventoryId}");
@@ -3904,10 +4011,11 @@ private void UpdateSecondBaseArming()
                         inventoryStorageRefreshInventoryId = int.MinValue;
                     }
                     inventoryBaselineInitialized = false;
+                    ResetFullInventoryState();
                 }
 
-                foreach (IntPtr storage in inventoryStorageObjects)
-                    ReadStorageItems(storage, inventoryId, result);
+                foreach (IntPtr storage in inventoryStorageObjects.Distinct())
+                    ReadStorageItems(storage, inventoryId, result, ref occupiedSlots);
             }
             catch (Exception ex)
             {
@@ -4006,7 +4114,11 @@ private void UpdateSecondBaseArming()
             return result;
         }
 
-        private void ReadStorageItems(IntPtr storage, int inventoryId, Dictionary<InventoryItem, int> result)
+        private void ReadStorageItems(
+            IntPtr storage,
+            int inventoryId,
+            Dictionary<InventoryItem, int> result,
+            ref int occupiedSlots)
         {
             try
             {
@@ -4027,6 +4139,12 @@ private void UpdateSecondBaseArming()
 
                     IntPtr itemType = game.Read<IntPtr>(item + FUWEInventoryItem_ItemType);
                     int count = game.Read<int>(item + FUWEInventoryItem_Count);
+                    // Inventory storage aggregates identical items into one
+                    // record. Count is the number of occupied inventory
+                    // slots represented by that record, not a stack size
+                    // contained in one slot.
+                    if (itemType != IntPtr.Zero && count > 0)
+                        occupiedSlots += count;
                     AddItemTypeCount(result, itemType, count);
                 }
             }
@@ -4921,7 +5039,13 @@ private void UpdateSecondBaseArming()
             if (unrealHelper == null || currentPlayerCharacterAddress == IntPtr.Zero)
                 return;
 
+            CaptureEncyclopediaStartStoryGoals();
             EnsureDatabankViewModels();
+
+            bool databankEventTriggered = Ue5EventTriggered("DatabankStoryGoalUnlocked")
+                || Ue5EventTriggered("DatabankScanCompleted");
+            if (databankEventTriggered)
+                nextEncyclopediaUpdateAttempt = DateTime.MinValue;
 
             if (encyclopediaReadTask != null)
             {
@@ -4984,7 +5108,11 @@ private void UpdateSecondBaseArming()
 
             // Like recipe lists, the Databank view model exists briefly before its entry tree is filled.
             // Do not turn that transient empty state into a session baseline.
-            if (resetBaseline && currentPrimaryKeys.Count == 0 && currentEntries.Count == 0 && currentKeys.Count == 0)
+            if (resetBaseline
+                && currentPrimaryKeys.Count == 0
+                && currentEntries.Count == 0
+                && currentKeys.Count == 0
+                && !(readResult?.AuthoritativeReadCompleted ?? false))
             {
                 nextEncyclopediaUpdateAttempt = DateTime.Now.AddMilliseconds(250);
                 return;
@@ -4992,17 +5120,28 @@ private void UpdateSecondBaseArming()
 
             if (resetBaseline)
             {
-                EncyclopediaOld = currentEntries;
-                encyclopediaPrimaryEntryKeysOld = currentPrimaryKeys;
-                encyclopediaEntryKeysOld = currentKeys;
+                EncyclopediaOld = readResult?.BaselineEntries ?? currentEntries;
+                encyclopediaPrimaryEntryKeysOld = readResult?.BaselinePrimaryKeys ?? currentPrimaryKeys;
+                encyclopediaEntryKeysOld = readResult?.BaselineKeys ?? currentKeys;
                 encyclopediaBaselineInitialized = true;
                 databankViewModelsChanged = false;
+                logger.Log(
+                    $"Encyclopedia baseline initialized: entries={currentPrimaryKeys.Count} " +
+                    $"mappedEntries={currentEntries.Count} keys={currentKeys.Count}");
+
+                foreach (string key in currentPrimaryKeys)
+                    if (!ContainsEncyclopediaKey(encyclopediaPrimaryEntryKeysOld, key))
+                        logger.Log($"Databank entry unlocked since gameplay start: {key}");
             }
             else
             {
                 EncyclopediaOld = previousEntries;
                 encyclopediaPrimaryEntryKeysOld = previousPrimaryKeys;
                 encyclopediaEntryKeysOld = previousKeys;
+
+                foreach (string key in currentPrimaryKeys)
+                    if (!ContainsEncyclopediaKey(previousPrimaryKeys, key))
+                        logger.Log($"Databank entry unlocked: {key}");
             }
 
             Encyclopedia = currentEntries;
@@ -5108,9 +5247,15 @@ private void UpdateSecondBaseArming()
             var result = new List<EncyEntry>();
             var primaryEntryKeys = new List<string>();
             var entryKeys = new List<string>();
+            bool authoritativeReadCompleted = false;
+            int categoryCount = 0;
+            int entryViewModelCount = 0;
 
             if (unrealHelper == null)
-                return new EncyclopediaReadResult(result, primaryEntryKeys, entryKeys, false, string.Empty);
+                return new EncyclopediaReadResult(
+                    result, primaryEntryKeys, entryKeys,
+                    null, null, null,
+                    false, false, string.Empty);
 
             foreach (IntPtr viewModel in viewModels)
             {
@@ -5118,11 +5263,31 @@ private void UpdateSecondBaseArming()
                 {
                     int entriesOffset = GetUnrealFieldOffset("SN2DatabankViewModel", SN2DatabankViewModel_Entries, "Entries");
                     int rootOffset = GetUnrealFieldOffset("SN2DatabankViewModel", SN2DatabankViewModel_Root, "Root");
-                    List<IntPtr> visibleEntryViewModels = ReadPointerArray(viewModel + entriesOffset, 1024);
-                    AddUniquePointers(visibleEntryViewModels, ReadDatabankCategoryEntryViewModels(game.Read<IntPtr>(viewModel + rootOffset)));
+                    IntPtr root = game.Read<IntPtr>(viewModel + rootOffset);
+                    List<IntPtr> unlockedEntryViewModels = ReadPointerArray(viewModel + entriesOffset, 1024);
+                    AddUniquePointers(unlockedEntryViewModels, ReadDatabankCategoryEntryViewModels(root));
+                    var categoryViewModels = new List<IntPtr>();
+                    bool categoryMapReady = TryReadDatabankCategoryMap(viewModel, categoryViewModels);
+                    categoryCount += categoryViewModels.Count;
+                    foreach (IntPtr categoryViewModel in categoryViewModels)
+                        AddUniquePointers(
+                            unlockedEntryViewModels,
+                            ReadDatabankCategoryEntryViewModels(categoryViewModel));
+                    entryViewModelCount += unlockedEntryViewModels.Count;
 
-                    foreach (IntPtr entryViewModel in visibleEntryViewModels)
+                    // Categories is the ViewModel's materialized unlocked-entry
+                    // tree. Root is not always linked to every category.
+                    // DatabankEntries is the complete 397+ asset catalog and must
+                    // never be walked during live updates.
+                    authoritativeReadCompleted |= root != IntPtr.Zero || categoryMapReady;
+
+                    foreach (IntPtr entryViewModel in unlockedEntryViewModels)
                     {
+                        bool isVisible = game.Read<byte>(entryViewModel + SN2DatabankEntryViewModel_IsVisible) != 0;
+                        bool isPublished = game.Read<byte>(entryViewModel + SN2DatabankEntryViewModel_IsPublished) != 0;
+                        if (!isVisible && !isPublished)
+                            continue;
+
                         IntPtr databankEntry = ReadDatabankEntryFromViewModel(entryViewModel);
                         AddDatabankEntry(databankEntry, result, primaryEntryKeys, entryKeys);
                     }
@@ -5132,9 +5297,30 @@ private void UpdateSecondBaseArming()
                 }
             }
 
-            bool shouldInvalidate = entryKeys.Count == 0 && viewModels.Count > 0 && hadPreviousKeys;
+            string probeState = $"{viewModels.Count}:{categoryCount}:{entryViewModelCount}:{primaryEntryKeys.Count}";
+            if (probeState != lastEncyclopediaProbeState)
+            {
+                lastEncyclopediaProbeState = probeState;
+                logger.Log(
+                    $"Encyclopedia probe: viewModels={viewModels.Count} categories={categoryCount} " +
+                    $"entryViewModels={entryViewModelCount} entries={primaryEntryKeys.Count}");
+            }
 
-            return new EncyclopediaReadResult(result, primaryEntryKeys, entryKeys, shouldInvalidate, "empty databank read");
+            bool shouldInvalidate = entryKeys.Count == 0
+                && viewModels.Count > 0
+                && hadPreviousKeys
+                && !authoritativeReadCompleted;
+
+            return new EncyclopediaReadResult(
+                result,
+                primaryEntryKeys,
+                entryKeys,
+                result.ToList(),
+                primaryEntryKeys.ToList(),
+                entryKeys.ToList(),
+                authoritativeReadCompleted,
+                shouldInvalidate,
+                "empty databank read");
         }
 
         private List<IntPtr> ReadDatabankCategoryEntryViewModels(IntPtr rootCategory)
@@ -5142,6 +5328,55 @@ private void UpdateSecondBaseArming()
             var result = new List<IntPtr>();
             AddDatabankCategoryEntryViewModels(rootCategory, result, new HashSet<IntPtr>(), 0);
             return result;
+        }
+
+        private bool TryReadDatabankCategoryMap(IntPtr viewModel, List<IntPtr> categories)
+        {
+            if (viewModel == IntPtr.Zero || categories == null)
+                return false;
+
+            try
+            {
+                int categoriesOffset = GetUnrealFieldOffset(
+                    "SN2DatabankViewModel",
+                    SN2DatabankViewModel_Categories,
+                    "Categories");
+                IntPtr mapAddress = viewModel + categoriesOffset;
+                IntPtr elements = game.Read<IntPtr>(mapAddress);
+                int sparseArraySize = game.Read<int>(mapAddress + 0x8);
+                int sparseArrayCapacity = game.Read<int>(mapAddress + 0xC);
+                if (sparseArraySize < 0
+                    || sparseArraySize > 64
+                    || sparseArrayCapacity < sparseArraySize
+                    || sparseArrayCapacity > 4096)
+                    return false;
+
+                if (sparseArraySize == 0)
+                    return true;
+                if (elements == IntPtr.Zero)
+                    return false;
+
+                // TMap<FString, UObject*> uses a TSparseArray. This build keeps
+                // the category map below 64 slots, so its allocation bitset is
+                // stored inline at +0x10. Each set element is 0x20 bytes and the
+                // category ViewModel value follows the 0x10-byte FString key.
+                ulong allocated = game.Read<ulong>(mapAddress + 0x10);
+                for (int index = 0; index < sparseArraySize; index++)
+                {
+                    if ((allocated & (1UL << index)) == 0)
+                        continue;
+
+                    IntPtr category = game.Read<IntPtr>(elements + index * 0x20 + 0x10);
+                    if (category != IntPtr.Zero && !categories.Contains(category))
+                        categories.Add(category);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void AddDatabankCategoryEntryViewModels(IntPtr category, List<IntPtr> result, HashSet<IntPtr> visited, int depth)
@@ -5238,23 +5473,144 @@ private void UpdateSecondBaseArming()
             }
         }
 
-        private void AddUnlockedLiveDatabankEntries(List<EncyEntry> entries, List<string> primaryEntryKeys, List<string> entryKeys)
+        private bool AddUnlockedConfiguredDatabankEntries(
+            List<string> configuredEntryNames,
+            DatabankStoryGoalState startStoryGoals,
+            List<EncyEntry> entries,
+            List<string> primaryEntryKeys,
+            List<string> entryKeys,
+            List<EncyEntry> baselineEntries,
+            List<string> baselinePrimaryEntryKeys,
+            List<string> baselineEntryKeys)
+        {
+            DatabankStoryGoalState currentStoryGoals = ReadPlayerStoryGoals();
+            if (currentStoryGoals.Count == 0)
+                return false;
+
+            int resolvedNames = 0;
+            foreach (string objectName in configuredEntryNames)
+            {
+                List<IntPtr> matches;
+                lock (databankEntryAssetCacheLock)
+                {
+                    matches = databankEntryAssets
+                        .Where(pointer => TryReadUObjectName(pointer, out string name)
+                            && name.Equals(objectName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                }
+
+                if (matches.Count == 0)
+                {
+                    try
+                    {
+                        matches = unrealHelper.FindLiveUObjectsByName(objectName, "UWEDatabankEntry", 8)
+                            .Where(pointer => pointer != IntPtr.Zero)
+                            .Distinct()
+                            .ToList();
+                    }
+                    catch
+                    {
+                        matches = new List<IntPtr>();
+                    }
+
+                    lock (databankEntryAssetCacheLock)
+                        foreach (IntPtr match in matches)
+                            if (!databankEntryAssets.Contains(match))
+                                databankEntryAssets.Add(match);
+                }
+
+                if (matches.Count == 0)
+                    continue;
+
+                resolvedNames++;
+                foreach (IntPtr databankEntry in matches)
+                {
+                    if (IsDatabankEntryUnlocked(databankEntry, currentStoryGoals))
+                        AddDatabankEntry(databankEntry, entries, primaryEntryKeys, entryKeys);
+                    if (startStoryGoals != null && IsDatabankEntryUnlocked(databankEntry, startStoryGoals))
+                        AddDatabankEntry(databankEntry, baselineEntries, baselinePrimaryEntryKeys, baselineEntryKeys);
+                }
+            }
+
+            return resolvedNames == configuredEntryNames.Count;
+        }
+
+        private bool AddUnlockedLiveDatabankEntries(
+            DatabankStoryGoalState startStoryGoals,
+            List<EncyEntry> entries,
+            List<string> primaryEntryKeys,
+            List<string> entryKeys,
+            List<EncyEntry> baselineEntries,
+            List<string> baselinePrimaryEntryKeys,
+            List<string> baselineEntryKeys)
         {
             if (unrealHelper == null)
-                return;
+                return false;
 
-            DatabankStoryGoalState unlockedStoryGoals = ReadGlobalDatabankStoryGoals();
+            DatabankStoryGoalState unlockedStoryGoals = ReadPlayerStoryGoals();
             if (unlockedStoryGoals.Count == 0)
-                return;
+                unlockedStoryGoals = ReadGlobalDatabankStoryGoals();
+            if (unlockedStoryGoals.Count == 0)
+                return false;
 
             try
             {
-                foreach (IntPtr databankEntry in unrealHelper.FindLiveUObjects("UWEDatabankEntry", 4096))
+                List<IntPtr> liveEntries = GetLiveDatabankEntryAssets();
+                if (liveEntries.Count == 0)
+                    return false;
+
+                foreach (IntPtr databankEntry in liveEntries)
+                {
                     if (IsDatabankEntryUnlocked(databankEntry, unlockedStoryGoals))
                         AddDatabankEntry(databankEntry, entries, primaryEntryKeys, entryKeys);
+                    if (startStoryGoals != null && IsDatabankEntryUnlocked(databankEntry, startStoryGoals))
+                        AddDatabankEntry(databankEntry, baselineEntries, baselinePrimaryEntryKeys, baselineEntryKeys);
+                }
+
+                return true;
             }
             catch
             {
+                return false;
+            }
+        }
+
+        private List<IntPtr> GetLiveDatabankEntryAssets()
+        {
+            DateTime now = DateTime.UtcNow;
+            lock (databankEntryAssetCacheLock)
+            {
+                if (databankEntryAssets.Count > 0 && now < nextDatabankEntryAssetRefresh)
+                    return databankEntryAssets.ToList();
+
+                nextDatabankEntryAssetRefresh = now.AddSeconds(
+                    databankEntryAssets.Count == 0 ? 2 : 30);
+            }
+
+            List<IntPtr> discovered;
+            try
+            {
+                discovered = unrealHelper.FindLiveUObjects("UWEDatabankEntry", 4096)
+                    .Where(pointer => pointer != IntPtr.Zero)
+                    .Distinct()
+                    .ToList();
+            }
+            catch
+            {
+                discovered = new List<IntPtr>();
+            }
+
+            lock (databankEntryAssetCacheLock)
+            {
+                int previousCount = databankEntryAssets.Count;
+                foreach (IntPtr entry in discovered)
+                    if (!databankEntryAssets.Contains(entry))
+                        databankEntryAssets.Add(entry);
+
+                if (databankEntryAssets.Count != previousCount)
+                    logger.Log($"Databank entry asset catalog refreshed: entries={databankEntryAssets.Count}");
+
+                return databankEntryAssets.ToList();
             }
         }
 
@@ -5264,6 +5620,14 @@ private void UpdateSecondBaseArming()
             public readonly HashSet<string> Names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             public int Count => Pointers.Count + Names.Count;
+
+            public DatabankStoryGoalState Clone()
+            {
+                var clone = new DatabankStoryGoalState();
+                clone.Pointers.UnionWith(Pointers);
+                clone.Names.UnionWith(Names);
+                return clone;
+            }
 
             public void AddPointer(IntPtr pointer)
             {
@@ -5756,19 +6120,11 @@ private void UpdateSecondBaseArming()
             if (currentPlayerCharacterAddress == IntPtr.Zero)
                 return;
 
-            if ((databankViewModels.Count == 0 || databankViewModelsInvalidated)
-                && TryGetCurrentWorldHud(out IntPtr worldHud))
-            {
-                var directViewModels = new List<IntPtr>();
-                AddDatabankViewModel(directViewModels, game.Read<IntPtr>(worldHud + SN2WorldHUD_DatabankViewModel));
-                if (directViewModels.Count > 0)
-                {
-                    ReplaceDatabankViewModels(directViewModels);
-                    databankViewModelsInvalidated = false;
-                    databankViewModelRefreshTask = null;
-                    return;
-                }
-            }
+            // Prefer the ViewModel owned by the current player's HUD on every
+            // pass. A globally discovered SN2DatabankViewModel can remain in the
+            // UObject array after a world transition and must never win over it.
+            if (TryAttachCurrentDatabankViewModel())
+                return;
 
             if (databankViewModelRefreshTask != null)
             {
@@ -5810,6 +6166,22 @@ private void UpdateSecondBaseArming()
             {
                 nextDatabankProbeAttempt = DateTime.Now.AddSeconds(10);
             }
+        }
+
+        private bool TryAttachCurrentDatabankViewModel()
+        {
+            if (!TryGetCurrentWorldHud(out IntPtr worldHud))
+                return false;
+
+            IntPtr viewModel = game.Read<IntPtr>(worldHud + SN2WorldHUD_DatabankViewModel);
+            if (viewModel == IntPtr.Zero)
+                return false;
+
+            var directViewModels = new List<IntPtr> { viewModel };
+            ReplaceDatabankViewModels(directViewModels);
+            databankViewModelsInvalidated = false;
+            databankViewModelRefreshTask = null;
+            return true;
         }
 
         private List<IntPtr> FindDatabankViewModels(IUnrealHelper helper)
@@ -5857,14 +6229,13 @@ private void UpdateSecondBaseArming()
                     return false;
 
                 string controllerClassName = unrealHelper.GetUObjectClassName(controller);
-                int hudOffset;
-                if ((!string.IsNullOrWhiteSpace(controllerClassName)
-                        && TryGetUnrealFieldOffset(controllerClassName, out hudOffset, "MyHUD", "HUD"))
-                    || TryGetUnrealFieldOffset("PlayerController", out hudOffset, "MyHUD", "HUD"))
-                {
-                    worldHud = game.Read<IntPtr>(controller + hudOffset);
-                    return worldHud != IntPtr.Zero;
-                }
+                int hudOffset = GetUnrealFieldOffset(
+                    string.IsNullOrWhiteSpace(controllerClassName) ? "PlayerController" : controllerClassName,
+                    PlayerController_MyHUD,
+                    "MyHUD",
+                    "HUD");
+                worldHud = game.Read<IntPtr>(controller + hudOffset);
+                return worldHud != IntPtr.Zero;
             }
             catch
             {
