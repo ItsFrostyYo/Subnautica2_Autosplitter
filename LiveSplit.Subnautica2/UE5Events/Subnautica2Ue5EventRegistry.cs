@@ -90,6 +90,7 @@ namespace LiveSplit.Subnautica2.UE5Events
             // Intro 
             Add("IntroUnlockDoor", "BP_SlidingDoor_C", "BP_SlidingDoor_C_UAID_C87F54AE2B72FF0402", "BndEvt__BP_SlidingDoor_LockComponent_K2Node_ComponentBoundEvent_0_LockDelegate__DelegateSignature");
             Add("IntroAnalyzingButtonPress", "BP_ScanningButton_C", null, "BroadcastButtonPressed");
+            Add("IntroFirstLeverPress", "BP_LifepodBay_Lever_C", "BP_LifepodBay_Lever_C_UAID_14AC60D60A5A096C02", "BroadcastButtonPressed");
             Add("IntroReleaseLifepod", "BP_LifepodBay_Chunk_Hatch_C", null, "RightLever");
             // Misc
             Add("EnterTadpole", "BP_Tadpole_C", null, "OnPilotEntered_BP");
@@ -97,8 +98,7 @@ namespace LiveSplit.Subnautica2.UE5Events
             Add("RepairTurbine", "BP_PowerPlant_FixedTurbineBlade_C", null, "OnUnlocked_8DED1B5341E414D6BCD2C6B91609A9C5");
             Add("BuildHatch", "BP_BaseHatch_C", "BP_BaseHatch_C", "BndEvt__BP_BaseHatch_UWEAttachable_K2Node_ComponentBoundEvent_0_OnAttached__DelegateSignature");
             Add("BuildProcessor", "BP_ProcessorStation_C", "BP_ProcessorStation_C", "OnAttached");
-            // Databank progression. These are notifications only; the memory
-            // reader resolves the concrete entry from SN2DatabankViewModel.
+            // Databank progression. These are notifications only; the memory reader resolves the concrete entry from SN2DatabankViewModel.
             Add("DatabankStoryGoalUnlocked", "SN2DatabankViewModel", null, "OnStoryGoalUnlocked");
             Add("DatabankScanCompleted", "UWEScannedActorsComponent", null, "OnScanCompletedEventFired");
             // End

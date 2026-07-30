@@ -139,6 +139,7 @@ namespace LiveSplit.Subnautica2
                 SplitName.BiobedAdaptation,
                 SplitName.FullInventory,
                 SplitName.IntroAnalyzingButtonPress,
+                SplitName.IntroFirstLeverPress,
                 SplitName.IntroReleaseLifepod,
                 SplitName.IntroLifepodAscend,
                 SplitName.IntroUnlockDoor,

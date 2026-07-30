@@ -52,6 +52,7 @@ namespace LiveSplit.Subnautica2
                 { SplitName.BiobedAdaptation, new[] { "BiobedAdaptationInventory", "BiobedAdaptationToolbar" } },
                 { SplitName.IntroUnlockDoor, new[] { "IntroUnlockDoor" } },
                 { SplitName.IntroAnalyzingButtonPress, new[] { "IntroAnalyzingButtonPress" } },
+                { SplitName.IntroFirstLeverPress, new[] { "IntroFirstLeverPress" } },
                 { SplitName.IntroReleaseLifepod, new[] { "IntroReleaseLifepod" } },
                 { SplitName.IntroLifepodAscend, new[] { "IntroLifepodAscend" } },
                 { SplitName.RepairTurbine, new[] { "RepairTurbine" } },

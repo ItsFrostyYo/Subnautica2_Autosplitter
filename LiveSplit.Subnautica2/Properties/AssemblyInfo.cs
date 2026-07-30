@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Livesplit.Subnautica2")]
-[assembly: AssemblyDescription("Fully Configurable Autosplitter for Subnautica 2 base on the Original Subnautica Autosplitter by Sprinter31")]
+[assembly: AssemblyDescription("Fully Configurable Autosplitter for Subnautica 2 based on the Original Subnautica Autosplitter by Sprinter31")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Livesplit.Subnautica2")]
@@ -32,7 +32,7 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.3.1.1")]
-[assembly: AssemblyFileVersion("1.3.1.1")]
+[assembly: AssemblyVersion("1.3.2.0")]
+[assembly: AssemblyFileVersion("1.3.2.0")]
 
 [assembly: ComponentFactory(typeof(Factory))]

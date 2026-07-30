@@ -267,7 +267,9 @@ namespace LiveSplit.Subnautica2
         IntroUnlockDoor,
         [Description("(Intro) Analyze Button Press"), ToolTip("Splits when the Analyzer Button is Pressed during the Intro")]
         IntroAnalyzingButtonPress,
-        [Description("(Intro) Release Lifepod"), ToolTip("Splits when the Intro Lifepod is Release after Pressing the Levers")]
+        [Description("(Intro) First Lever Press"), ToolTip("Splits when you Flick one of the Lifepod Levers inside the Intro")]
+        IntroFirstLeverPress,
+        [Description("(Intro) Release Lifepod"), ToolTip("Splits when the Intro Lifepod is Release after Pressing the Levers in the Intro")]
         IntroReleaseLifepod,
         [Description("(Intro) Lifepod Ascend"), ToolTip("Splits when the Intro Lifepod Begins Ascending")]
         IntroLifepodAscend,
