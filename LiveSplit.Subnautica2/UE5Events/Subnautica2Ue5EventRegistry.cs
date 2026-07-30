@@ -106,6 +106,7 @@ namespace LiveSplit.Subnautica2.UE5Events
 
             // Load Removal Events
             Add("IntroLifepodAscend", "BP_NarrativeSignal_C", null, "OnUnlocked_62920D1448BD71509596E5B554437304");
+            Add("NoATerminalScreenClosed", "WBP_ComputerTextInterface_C", null, "BP_OnDeactivated");
             Add("IntroCutsceneLoadRemovalEnd", "BP_LifepodManager_C", null, "OnSequenceEnd");
   
             // [BP_BlightNode_C] [BP_BlightNode_C_UAID_C87F54AE2B72E68402] [OnBroken]

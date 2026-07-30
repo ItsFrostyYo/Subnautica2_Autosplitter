@@ -54,7 +54,6 @@ namespace LiveSplit.Subnautica2
                 { SplitName.IntroAnalyzingButtonPress, new[] { "IntroAnalyzingButtonPress" } },
                 { SplitName.IntroFirstLeverPress, new[] { "IntroFirstLeverPress" } },
                 { SplitName.IntroReleaseLifepod, new[] { "IntroReleaseLifepod" } },
-                { SplitName.IntroLifepodAscend, new[] { "IntroLifepodAscend" } },
                 { SplitName.RepairTurbine, new[] { "RepairTurbine" } },
                 { SplitName.BuildProcessor, new[] { "BuildProcessor" } },
                 { SplitName.EnterTadpole, new[] { "EnterTadpole" } },
@@ -102,6 +101,8 @@ namespace LiveSplit.Subnautica2
         private bool enterTadpoleAfterSecondBaseArmed;
         private int deepStartCinematicRemovalCount;
         private bool survivalStartStoryGoalArmed;
+        private bool introLifepodAscendArmed;
+        private bool introLifepodAscendThisUpdate;
         private bool loadRemovalActive;
         private bool playerDiscoveryAllowed = true;
 
@@ -519,6 +520,8 @@ namespace LiveSplit.Subnautica2
                     enterTadpoleAfterSecondBaseArmed = false;
                     deepStartCinematicRemovalCount = 0;
                     survivalStartStoryGoalArmed = false;
+                    introLifepodAscendArmed = false;
+                    introLifepodAscendThisUpdate = false;
                     loadRemovalActive = false;
                     inventoryStorageObjects.Clear();
                     inventoryStorageRefreshTask = null;
@@ -637,6 +640,10 @@ namespace LiveSplit.Subnautica2
                                 () => PrefabricatedEventTriggered(splitName));
 
                     subConditions.Add(
+                                SplitName.IntroLifepodAscend,
+                                () => introLifepodAscendThisUpdate);
+
+                    subConditions.Add(
                                 SplitName.SecondBase,
                                 () => secondBaseArmed
                                 && IsInBiome(Biome.Observatory)
@@ -692,6 +699,10 @@ namespace LiveSplit.Subnautica2
                     splitConditions.Add(
                                splitName,
                                () => PrefabricatedEventTriggered(splitName));
+
+                    splitConditions.Add(
+                               SplitName.IntroLifepodAscend,
+                               () => introLifepodAscendThisUpdate);
 
                     splitConditions.Add(
                                SplitName.SecondBase,
@@ -758,12 +769,14 @@ namespace LiveSplit.Subnautica2
             mainMenuEnteredThisUpdate = Ue5EventTriggered("MainMenuConstruct");
             creativeStartThisUpdate = Ue5EventTriggered("CreativeStart");
             survivalStartThisUpdate = false;
+            introLifepodAscendThisUpdate = false;
 
             if (mainMenuEnteredThisUpdate)
             {
                 startedTimerBefore = false;
                 deepStartCinematicRemovalCount = 0;
                 survivalStartStoryGoalArmed = false;
+                introLifepodAscendArmed = false;
                 loadRemovalActive = false;
                 playerDiscoveryAllowed = false;
                 gameplayInitializationPending = false;
@@ -777,13 +790,22 @@ namespace LiveSplit.Subnautica2
 
             if (Ue5EventTriggered("IntroLifepodAscend"))
             {
+                introLifepodAscendArmed = true;
+                logger.Log("Intro load removal armed; waiting for NoA terminal screen to close");
+            }
+
+            if (introLifepodAscendArmed && Ue5EventTriggered("NoATerminalScreenClosed"))
+            {
+                introLifepodAscendArmed = false;
+                introLifepodAscendThisUpdate = true;
                 loadRemovalActive = true;
-                logger.Log("Intro load removal started");
+                logger.Log("Intro load removal started: NoA terminal screen closed");
             }
 
             bool introSequenceEnded = Ue5EventTriggered("IntroCutsceneLoadRemovalEnd");
             if (introSequenceEnded)
             {
+                introLifepodAscendArmed = false;
                 loadRemovalActive = false;
                 logger.Log("Intro load removal ended");
             }

@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <updates>
-    <update version="1.3.2.0">
+    <update version="1.3.3.3">
+        <files>
+            <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
+        </files>
+        <changelog>
+            <change>Updated NoA Split/Load Removal to be More Accurate</change>
+        </changelog>
+    </update>  
+    <update version="1.3.3.3">
         <files>
             <file path="Components/LiveSplit.Subnautica2.dll" status="changed"/>
         </files>
